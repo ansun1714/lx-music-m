@@ -3,43 +3,65 @@
 -rw-r--r-- 1 runner runner 28M Nov 15 12:51 .hvigor-pkgs/ohos-hvigor-ohos-plugin-5.19.8.tgz
 hvigor 就绪
 ===== ci-logs/hvigor-build.log =====
-> hvigor [32mFinished :entry:clean... after 2 ms [39m
-> hvigor [32mFinished :entry:default@PreBuild... after 208 ms [39m
-> hvigor [32mFinished :entry:default@CreateModuleInfo... after 2 ms [39m
-> hvigor [32mFinished :entry:default@GenerateMetadata... after 4 ms [39m
+> hvigor [32mFinished :entry:clean... after 1 ms [39m
+> hvigor [32mFinished :entry:default@PreBuild... after 135 ms [39m
+> hvigor [32mFinished :entry:default@CreateModuleInfo... after 1 ms [39m
+> hvigor [32mFinished :entry:default@GenerateMetadata... after 2 ms [39m
 > hvigor [32mFinished :entry:default@ConfigureCmake... after 1 ms [39m
-> hvigor [32mFinished :entry:default@MergeProfile... after 3 ms [39m
-> hvigor [32mFinished :entry:default@CreateBuildProfile... after 4 ms [39m
+> hvigor [32mFinished :entry:default@MergeProfile... after 2 ms [39m
+> hvigor [32mFinished :entry:default@CreateBuildProfile... after 1 ms [39m
 > hvigor [32mFinished :entry:default@PreCheckSyscap... after 1 ms [39m
-> hvigor [32mFinished :entry:default@GeneratePkgContextInfo... after 10 ms [39m
-> hvigor [32mFinished :entry:default@ProcessIntegratedHsp... after 4 ms [39m
-> hvigor [32mFinished :entry:default@BuildNativeWithCmake... after 1 ms [39m
-> hvigor [32mFinished :entry:default@MakePackInfo... after 3 ms [39m
-> hvigor [32mFinished :entry:default@ProcessProfile... after 73 ms [39m
+> hvigor [32mFinished :entry:default@GeneratePkgContextInfo... after 7 ms [39m
+> hvigor [32mFinished :entry:default@ProcessIntegratedHsp... after 2 ms [39m
+> hvigor [32mFinished :entry:default@BuildNativeWithCmake... after 2 ms [39m
+> hvigor [32mFinished :entry:default@MakePackInfo... after 2 ms [39m
+> hvigor [32mFinished :entry:default@ProcessProfile... after 51 ms [39m
 > hvigor [32mFinished :entry:default@ProcessRouterMap... after 2 ms [39m
-> hvigor [32mFinished :entry:default@ProcessStartupConfig... after 2 ms [39m
+> hvigor [32mFinished :entry:default@ProcessStartupConfig... after 1 ms [39m
 > hvigor [32mFinished :entry:default@BuildNativeWithNinja... after 1 ms [39m
 > hvigor [32mFinished :entry:default@ProcessResource... after 2 ms [39m
-> hvigor [32mFinished :entry:default@GenerateLoaderJson... after 5 ms [39m
-> hvigor [32mFinished :entry:default@ProcessLibs... after 6 ms [39m
-> hvigor [32mFinished :entry:default@CompileResource... after 105 ms [39m
+> hvigor [32mFinished :entry:default@GenerateLoaderJson... after 3 ms [39m
+> hvigor [32mFinished :entry:default@ProcessLibs... after 4 ms [39m
+> hvigor [32mFinished :entry:default@CompileResource... after 62 ms [39m
 > hvigor [32mFinished :entry:default@DoNativeStrip... after 5 ms [39m
-> hvigor [32mFinished :entry:default@BuildJS... after 2 ms [39m
-> hvigor [32mFinished :entry:default@SyscapTransform... after 25 ms [39m
+> hvigor [32mFinished :entry:default@BuildJS... after 1 ms [39m
+> hvigor [32mFinished :entry:default@SyscapTransform... after 17 ms [39m
 > hvigor [91mERROR: Failed :entry:default@CompileArkTS... [39m
 > hvigor [91mERROR: ArkTS Compiler Error
-[31m1 ERROR: [31m[31mArkTS:ERROR File: /home/runner/work/lx-music-m/lx-music-m/harmony/entry/src/main/ets/pages/Index.ets:48:20
- Argument of type '(event: OnConsoleEvent) => void' is not assignable to parameter of type 'Callback<OnConsoleEvent, boolean>'.
-  Type 'void' is not assignable to type 'boolean'.
+[33m1 WARN: [33m[33mArkTS:WARN: For details about ArkTS syntax errors, see FAQs[39m[39m
+[33m2 WARN: [33m[33mArkTS:WARN File: /home/runner/work/lx-music-m/lx-music-m/harmony/entry/src/main/ets/core/EchoBridge.ets:665:10
+ The system capacity of this api 'selectMode' is not supported on all devices
+[39m[39m
+[33m3 WARN: [33m[33mArkTS:WARN File: /home/runner/work/lx-music-m/lx-music-m/harmony/entry/src/main/ets/core/EchoBridge.ets:665:30
+ The system capacity of this api 'DocumentSelectMode' is not supported on all devices
+[39m[39m
+[33m4 WARN: [33m[33mArkTS:WARN File: /home/runner/work/lx-music-m/lx-music-m/harmony/entry/src/main/ets/core/EchoBridge.ets:665:49
+ The system capacity of this api 'FOLDER' is not supported on all devices
+[39m[39m
+[33m5 WARN: [33m[33mArkTS:WARN File: /home/runner/work/lx-music-m/lx-music-m/harmony/entry/src/main/ets/core/EchoBridge.ets:679:17
+ The system capacity of this api 'persistPermission' is not supported on all devices
+[39m[39m
+[33m6 WARN: [33m[33mArkTS:WARN File: /home/runner/work/lx-music-m/lx-music-m/harmony/entry/src/main/ets/core/EchoBridge.ets:679:73
+ The system capacity of this api 'OperationMode' is not supported on all devices
+[39m[39m
+[33m7 WARN: [33m[33mArkTS:WARN File: /home/runner/work/lx-music-m/lx-music-m/harmony/entry/src/main/ets/core/EchoBridge.ets:724:17
+ The system capacity of this api 'activatePermission' is not supported on all devices
+[39m[39m
+[33m8 WARN: [33m[33mArkTS:WARN File: /home/runner/work/lx-music-m/lx-music-m/harmony/entry/src/main/ets/core/EchoBridge.ets:724:74
+ The system capacity of this api 'OperationMode' is not supported on all devices
+[39m[39m
+[31m1 ERROR: [31m[31mArkTS:ERROR File: /home/runner/work/lx-music-m/lx-music-m/harmony/entry/src/main/ets/core/EchoBridge.ets:666:73
+ Argument of type 'UIAbilityContext | null' is not assignable to parameter of type 'Context'.
+  Type 'null' is not assignable to type 'Context'.
 [39m
 [39m
-[31m2 ERROR: [31m[31mArkTS:ERROR File: /home/runner/work/lx-music-m/lx-music-m/harmony/entry/src/main/ets/pages/Index.ets:51:21
- Property 'messageLevel' does not exist on type 'OnConsoleEvent'.
+[31m2 ERROR: [31m[31mArkTS:ERROR File: /home/runner/work/lx-music-m/lx-music-m/harmony/entry/src/main/ets/core/EchoBridge.ets:679:87
+ Property 'READ_WRITE' does not exist on type 'typeof OperationMode'.
 [39m
 [39m
-[31m3 ERROR: [31m[31mArkTS:ERROR File: /home/runner/work/lx-music-m/lx-music-m/harmony/entry/src/main/ets/pages/Index.ets:51:56
- Property 'lineNumber' does not exist on type 'OnConsoleEvent'.
+[31m3 ERROR: [31m[31mArkTS:ERROR File: /home/runner/work/lx-music-m/lx-music-m/harmony/entry/src/main/ets/core/EchoBridge.ets:724:88
+ Property 'READ_WRITE' does not exist on type 'typeof OperationMode'.
 [39m
 [39m
-[31mCOMPILE RESULT:FAIL {ERROR:4}[39m[39m
-> hvigor [91mERROR: BUILD FAILED in 11 s 451 ms [39m
+[31mCOMPILE RESULT:FAIL {ERROR:4 WARN:8}[39m[39m
+> hvigor [91mERROR: BUILD FAILED in 6 s 924 ms [39m
