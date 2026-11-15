@@ -547,6 +547,87 @@ export class EchoBridge {
   private saveBuf: string[] = [];
   private saveName: string = '';
 
+  /** 沙箱路径归一化：JS 可能传绝对路径、file:// 前缀或 downloads/ 相对路径 */
+  private resolveDownloadPath(p: string): string {
+    if (p === null || p === undefined || p.length === 0) {
+      return '';
+    }
+    let rel: string = p;
+    if (rel.startsWith('file://')) {
+      rel = rel.substring(7);
+    }
+    let full: string = rel;
+    if (!rel.startsWith('/')) {
+      full = rel.startsWith('downloads/') ? this.filesDir() + '/' + rel : this.filesDir() + '/downloads/' + rel;
+    }
+    try {
+      if (!fs.accessSync(full)) {
+        return '';
+      }
+    } catch (e) {
+      return '';
+    }
+    return full;
+  }
+
+  /** 把沙箱文件写到用户选定的位置（文件管理器可见），HarmonyOS 无公共目录直写权限 */
+  private saveSandboxToUserFile(srcPath: string, name: string, mime: string): void {
+    if (this.ctx === null) {
+      this.toast('保存失败：上下文未就绪');
+      return;
+    }
+    const opt: picker.DocumentSaveOptions = new picker.DocumentSaveOptions();
+    opt.newFileNames = [name];
+    const vp: picker.DocumentViewPicker = new picker.DocumentViewPicker(this.ctx);
+    vp.save(opt).then((uris: string[]) => {
+      if (uris === null || uris === undefined || uris.length === 0) {
+        return;
+      }
+      const uri: string = uris[0];
+      try {
+        const src: fs.File = fs.openSync(srcPath, fs.OpenMode.READ_ONLY);
+        const dst: fs.File = fs.openSync(uri, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+        const step: number = 262144;
+        let buf: ArrayBuffer = new ArrayBuffer(step);
+        while (true) {
+          const n: number = fs.readSync(src.fd, buf, { offset: 0, length: step });
+          if (n <= 0) {
+            break;
+          }
+          fs.writeSync(dst.fd, buf.slice(0, n));
+        }
+        fs.closeSync(src.fd);
+        fs.closeSync(dst.fd);
+        hilog.info(DOMAIN, TAG, 'export ok: %{public}s', uri);
+        this.toast('已保存到文件管理器');
+      } catch (e) {
+        const err = e as BusinessError;
+        hilog.error(DOMAIN, TAG, 'export write failed: %{public}s',
+          err !== null && err !== undefined && err.message !== undefined ? err.message : String(e));
+        this.toast('保存失败');
+      }
+    }).catch((err: BusinessError) => {
+      hilog.error(DOMAIN, TAG, 'export cancelled: %{public}s',
+        err !== null && err !== undefined && err.message !== undefined ? err.message : '');
+      this.toast('已取消保存');
+    });
+  }
+
+  /**
+   * 导出已下载的文件到用户可见目录。
+   * JS: EchoBridge.exportDownload(path | 文件名, mime)
+   */
+  exportDownload(path: string, mime: string): void {
+    const src: string = this.resolveDownloadPath(path);
+    if (src === '') {
+      this.toast('文件不存在');
+      return;
+    }
+    const name: string = this.safeName(src.substring(src.lastIndexOf('/') + 1));
+    hilog.info(DOMAIN, TAG, 'export download: %{public}s', src);
+    this.saveSandboxToUserFile(src, name, mime);
+  }
+
   saveDownloadStart(name: string, mime: string): void {
     this.saveName = this.safeName(name === null || name === undefined ? 'export.bin' : name);
     this.saveBuf = [];
@@ -573,7 +654,12 @@ export class EchoBridge {
       ok = false;
     }
     this.saveBuf = [];
-    this.toast(ok ? ('已保存到 ' + path) : '保存失败');
+    if (ok) {
+      // 沙箱只是中转站，最终要落到用户可见目录，否则系统「文件」里找不到
+      this.saveSandboxToUserFile(path, this.saveName, 'audio/mpeg');
+    } else {
+      this.toast('保存失败');
+    }
   }
 
   saveText(name: string, text: string): void {

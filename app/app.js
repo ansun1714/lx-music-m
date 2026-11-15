@@ -740,7 +740,9 @@
         '<option value="__custom"' + (inPreset ? '' : ' selected') + '>' +
           esc('自定义目录…') + '</option>' +
         '</select>';
-      desc = '保存到 /storage/emulated/0/' + cur + '（Android 10+ 走 MediaStore，无需存储权限）';
+      desc = (window.EchoBridge && typeof window.EchoBridge.exportDownload === 'function')
+        ? '保存到应用沙箱，下载完成可点「保存到文件」导出到文件管理器'
+        : '保存到 /storage/emulated/0/' + cur + '（Android 10+ 走 MediaStore，无需存储权限）';
     } else if (it.type === 'dlquality') {
       var dq = Q.normalize(S.settings.downloadQuality || DL.opts.quality) || '320k';
       extra = '<select data-act="dl-quality">' + Q.PRIORITY.map(function (q) {
@@ -814,6 +816,9 @@
       if (j.state === 'done') {
         // 完成的任务整行可点：点歌名就能直接播放，不再需要先找「播放」按钮
         if (!j.path) acts += '<button data-act="dl-save" data-id="' + j.id + '">保存到设备</button>';
+        else if (window.EchoBridge && typeof window.EchoBridge.exportDownload === 'function') {
+          acts += '<button data-act="dl-export" data-id="' + j.id + '">保存到文件</button>';
+        }
       }
       acts += '<button data-act="dl-remove" data-id="' + j.id + '">移除</button>';
       var hit = j.state === 'done';
@@ -836,7 +841,9 @@
           ? '<div class="dl-meta"><span class="dl-note">' + esc(j.note) + '</span></div>' : '') +
         (j.state === 'error' && j.error
           ? '<div class="dl-meta"><span style="color:#d64541">' + esc(j.error) + '</span></div>' : '') +
-        (j.path ? '<div class="dl-meta"><span>已保存到 ' + esc(j.path) + '</span></div>' : '') +
+        (j.path ? '<div class="dl-meta"><span>' + (window.EchoBridge && typeof window.EchoBridge.exportDownload === 'function'
+          ? '已下载到应用沙箱，点「保存到文件」导出到文件管理器'
+          : '已保存到 ' + esc(j.path)) + '</span></div>' : '') +
         '<div class="dl-acts">' + acts + '</div></div>';
     }).join('');
   }
@@ -2094,6 +2101,13 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
         // DL.all() 返回的是元数据（不含 Blob），必须按任务 id 取回内部 Blob 再交付
         var okSave = DL.deliverById ? DL.deliverById(id) : false;
         toast(okSave ? '已请求保存到设备' : t('download_not_ready', '文件尚未就绪'));
+        return;
+      }
+      case 'dl-export': {
+        var jx = DL.all().filter(function (x) { return x.id === id; })[0];
+        if (!jx || !jx.path) { toast(t('download_not_ready', '文件尚未就绪')); return; }
+        try { window.EchoBridge.exportDownload(jx.path, jx.mime || 'audio/mpeg'); }
+        catch (e) { toast('导出失败'); }
         return;
       }
       case 'dl-resume-all': DL.all().filter(function (j) { return j.state === 'paused'; }).forEach(function (j) { DL.resume(j.id); }); return;
