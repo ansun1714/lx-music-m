@@ -746,12 +746,8 @@
       if (isHap) {
         // 鸿蒙：系统不允许静默写入任意公共目录，改为「选一个文件夹并持久授权」，之后自动写入、不再弹框
         var dirUri = S.settings.exportDirUri || '';
-        extra = '<button class="btn sm" data-act="dl-dir-pick">' +
-          esc(dirUri ? '重新选择' : '选择文件夹') + '</button>';
-        desc = dirUri
-          ? '已授权：' + decodeURIComponent(String(dirUri).split('/').pop() || '') +
-            '，之后下载完成自动写入该文件夹（不再弹窗）'
-          : '先点右侧「选择文件夹」授权一个目录，之后下载完成自动写入、不再弹窗；不设置则保存在应用沙箱，可手动「保存到文件」导出';
+        extra = '';
+        desc = '鸿蒙系统未开放「选择文件夹」授权（缺少 FolderSelection 能力），无法静默写入自选目录；请用下载页的「全部保存」批量导出，或单首点「保存到文件」';
       } else {
         var cur = DL.dirOf();
         var presets = DL.DL_PRESETS || [];
@@ -773,6 +769,8 @@
       }).join('') + '</select>';
       desc = Q.name(dq) + '：' + Q.desc(dq);
     } else if (it.type === 'dlauto') {
+      // 鸿蒙：系统无 FolderSelection 能力，无法授权目录实现静默写入，这条开关只对安卓有效，HAP 隐藏
+      if (window.EchoBridge) { return ''; }
       extra = '<label class="switch"><input type="checkbox" data-act="dl-auto"' +
         (DL.opts.autoDeliver ? ' checked' : '') + '><i></i></label>';
     } else {

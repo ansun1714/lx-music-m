@@ -541,7 +541,9 @@ export class EchoBridge {
       // 已设置保存文件夹 + 开启「完成后自动保存」：静默写入用户目录，不弹任何框。
       // 这是 Android「下载落 Download/LX Music」在鸿蒙上的等价物（系统不允许应用直写公共目录，
       // 必须用户先经文件夹选择器授权，再由 fileShare.persistPermission 持久化）。
-      if (this.autoExport && this.saveDirUri.length > 0) {
+      // 本机 SystemCapability.FileManagement.UserFileService.FolderSelection 缺失：picker 无法选文件夹、
+      // fileShare 也拿不到目录授权，故这里不再尝试自动写入（详见 README 的下载章节）。
+      if (false) {
         const name: string = job.destPath.substring(job.destPath.lastIndexOf('/') + 1);
         this.saveToDir(job.destPath, this.safeName(name), true);
       }
@@ -678,9 +680,15 @@ export class EchoBridge {
     const opts: picker.DocumentSelectOptions = new picker.DocumentSelectOptions();
     // SDK 15 的枚举只声明了 FILE；FOLDER(1) 在新系统上才生效，不支持时 select() 会抛错并走回退
     opts.selectMode = 1 as picker.DocumentSelectMode;
+    opts.maxSelectNumber = 1;
+    hilog.info(DOMAIN, TAG, 'pick dir: open picker mode=%{public}d', opts.selectMode as number);
     const vp: picker.DocumentViewPicker = new picker.DocumentViewPicker(c);
     vp.select(opts).then((uris: string[]) => {
-      if (uris === null || uris === undefined || uris.length === 0) {
+      const n: number = (uris === null || uris === undefined) ? 0 : uris.length;
+      hilog.info(DOMAIN, TAG, 'pick dir: returned %{public}d uri, first=%{public}s', n, n > 0 ? uris[0] : 'none');
+      if (n === 0) {
+        this.toast('没有选到文件夹（当前系统可能只支持选文件）');
+        this.runJs('window.LXSaveDir&&window.LXSaveDir.onFail(' + this.jsJson('未选择文件夹') + ')');
         return;
       }
       let uri: string = uris[0];
