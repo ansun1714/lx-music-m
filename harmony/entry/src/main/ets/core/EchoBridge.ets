@@ -861,7 +861,8 @@ export class EchoBridge {
         continue;
       }
       srcs.push(src);
-      let nm: string = this.safeName(items[i].name);
+      // 文件名统一取沙箱里的实际文件名（含「歌名 - 艺术家」），与单首「保存到文件」保持一致
+      let nm: string = this.safeName(decodeURIComponent(src.substring(src.lastIndexOf('/') + 1)));
       if (nm.lastIndexOf('.') < 0) {
         const dot: number = src.lastIndexOf('.');
         if (dot > 0) {
