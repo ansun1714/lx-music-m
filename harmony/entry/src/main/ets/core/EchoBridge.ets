@@ -52,6 +52,8 @@ export class EchoBridge {
   private httpCalls: Map<string, http.HttpRequest> = new Map<string, http.HttpRequest>();
   private downloads: Map<string, DownloadJob> = new Map<string, DownloadJob>();
   private pickAcked: boolean = false;
+  /** 尚未执行完成的 runJavaScript 数量，用于保证分块先于 onResponse 落地 */
+  private jsPending: number = 0;
 
   init(ctx: common.UIAbilityContext, web: webview.WebviewController): void {
     this.ctx = ctx;
@@ -65,9 +67,24 @@ export class EchoBridge {
     if (w === null) {
       return;
     }
-    w.runJavaScript(code).catch((err: BusinessError) => {
+    this.jsPending++;
+    w.runJavaScript(code).then(() => {
+      this.jsPending--;
+    }).catch((err: BusinessError) => {
+      this.jsPending--;
       hilog.error(DOMAIN, TAG, 'runJavaScript failed: %{public}s', err.message);
     });
+  }
+
+  /** 等 queue 里的 JS 注入全部执行完再回调，避免 onResponse 抢在分块前面 */
+  private waitJsIdle(fn: () => void, tries: number): void {
+    if (this.jsPending === 0 || tries <= 0) {
+      fn();
+      return;
+    }
+    setTimeout(() => {
+      this.waitJsIdle(fn, tries - 1);
+    }, 20);
   }
 
   private jsJson(v: string | number | boolean): string {
@@ -164,6 +181,7 @@ export class EchoBridge {
     let chunkIndex: number = 0;
     let respHeaders: string = '{}';
     let finished: boolean = false;
+    const textBuffers: Uint8Array[] = [];
 
     const settleError = (msg: string): void => {
       if (finished) {
@@ -176,11 +194,13 @@ export class EchoBridge {
         req.destroy();
       } catch (e) {
       }
-      this.runJs('window.LXHttp&&LXHttp.onResponse(' + this.jsJson(key) + ',' + this.jsJson(msg) +
-        ',0,"","{}","",false)');
+      this.waitJsIdle(() => {
+        this.runJs('window.LXHttp&&LXHttp.onResponse(' + this.jsJson(key) + ',' + this.jsJson(msg) +
+          ',0,"","{}","",false)');
+      }, 300);
     };
 
-    const emitChunk = (u8: Uint8Array): void => {
+    const emitBinary = (u8: Uint8Array): void => {
       const helper: util.Base64Helper = new util.Base64Helper();
       for (let off: number = 0; off < u8.length; off += CHUNK_BYTES) {
         const end: number = Math.min(off + CHUNK_BYTES, u8.length);
@@ -189,6 +209,47 @@ export class EchoBridge {
           this.jsJson(part) + ')');
         chunkIndex++;
       }
+    };
+
+    const decodeText = (): string => {
+      let total: number = 0;
+      for (let i: number = 0; i < textBuffers.length; i++) {
+        total += textBuffers[i].length;
+      }
+      const all: Uint8Array = new Uint8Array(total);
+      let off: number = 0;
+      for (let i: number = 0; i < textBuffers.length; i++) {
+        all.set(textBuffers[i], off);
+        off += textBuffers[i].length;
+      }
+      const dec: util.TextDecoder = util.TextDecoder.create('utf-8');
+      return dec.decodeToString(all);
+    };
+
+    /* 文本响应给 JS 的是原文（不是 Base64），与 APK 桥保持一致，否则 JSON.parse 必失败 */
+    const finishOk = (code: number): void => {
+      let bodyText: string = '';
+      let chunked: number = 0;
+      if (!binary) {
+        bodyText = decodeText();
+        if (bodyText.length > 1000000) {
+          for (let i: number = 0; i < bodyText.length; i += CHUNK_BYTES) {
+            this.runJs('window.LXHttp&&LXHttp.onChunk(' + this.jsJson(key) + ',' + chunkIndex + ',' +
+              this.jsJson(bodyText.substring(i, Math.min(i + CHUNK_BYTES, bodyText.length))) + ')');
+            chunkIndex++;
+          }
+          bodyText = '';
+          chunked = 1;
+        }
+      }
+      const jsChars: number = chunked === 1 ? 0 : bodyText.length;
+      hilog.info(DOMAIN, TAG, 'done code=%{public}d bytes=%{public}d chars=%{public}d chunked=%{public}d',
+        code, received, jsChars, chunked);
+      const script: string = 'window.LXHttp&&LXHttp.onResponse(' + this.jsJson(key) + ',null,' + code +
+        ',"",' + this.jsJson(respHeaders) + ',' + this.jsJson(bodyText) + ',' + binary + ')';
+      this.waitJsIdle(() => {
+        this.runJs(script);
+      }, 300);
     };
 
     this.runJs('window.LXHttp&&LXHttp.onChunkStart(' + this.jsJson(key) + ',0)');
@@ -215,7 +276,12 @@ export class EchoBridge {
         settleError('响应过大（超过 ' + Math.floor(limit / 1048576) + 'MB）');
         return;
       }
-      emitChunk(new Uint8Array(data));
+      const u8: Uint8Array = new Uint8Array(data);
+      if (binary) {
+        emitBinary(u8);
+      } else {
+        textBuffers.push(u8.slice(0));
+      }
     });
 
     const options: http.HttpRequestOptions = {
@@ -243,9 +309,7 @@ export class EchoBridge {
             this.jsJson(err.message || 'request failed') + ',0,"","{}","",false)');
           return;
         }
-        hilog.info(DOMAIN, TAG, 'stream done code=%{public}d bytes=%{public}d', code, received);
-        this.runJs('window.LXHttp&&LXHttp.onResponse(' + this.jsJson(key) + ',null,' + code +
-          ',"",' + this.jsJson(respHeaders) + ',"",' + binary + ')');
+        finishOk(code);
         try {
           req.destroy();
         } catch (e) {
@@ -260,7 +324,6 @@ export class EchoBridge {
     }
 
     if (!streamStarted) {
-      // requestInStream 同步失败时退回一次性请求，避免整条链路直接哑掉
       hilog.info(DOMAIN, TAG, 'fallback to request()');
       req.request(url, options).then((resp: http.HttpResponse) => {
         if (finished) {
@@ -274,19 +337,22 @@ export class EchoBridge {
           const u8: Uint8Array = new Uint8Array(payload as ArrayBuffer);
           received = u8.length;
           if (received > limit) {
-            this.runJs('window.LXHttp&&LXHttp.onResponse(' + this.jsJson(key) + ',' +
-              this.jsJson('响应过大（超过 ' + Math.floor(limit / 1048576) + 'MB）') + ',0,"","{}","",false)');
+            settleError('响应过大（超过 ' + Math.floor(limit / 1048576) + 'MB）');
             return;
           }
-          emitChunk(u8);
+          emitBinary(u8);
           hilog.info(DOMAIN, TAG, 'request done code=%{public}d bytes=%{public}d', code, received);
-          this.runJs('window.LXHttp&&LXHttp.onResponse(' + this.jsJson(key) + ',null,' + code +
-            ',"",' + this.jsJson(respHeaders) + ',"",true)');
+          this.waitJsIdle(() => {
+            this.runJs('window.LXHttp&&LXHttp.onResponse(' + this.jsJson(key) + ',null,' + code +
+              ',"",' + this.jsJson(respHeaders) + ',"",true)');
+          }, 300);
         } else {
           const text: string = payload === null || payload === undefined ? '' : String(payload);
           hilog.info(DOMAIN, TAG, 'request done code=%{public}d chars=%{public}d', code, text.length);
-          this.runJs('window.LXHttp&&LXHttp.onResponse(' + this.jsJson(key) + ',null,' + code +
-            ',"",' + this.jsJson(respHeaders) + ',' + this.jsJson(text) + ',false)');
+          this.waitJsIdle(() => {
+            this.runJs('window.LXHttp&&LXHttp.onResponse(' + this.jsJson(key) + ',null,' + code +
+              ',"",' + this.jsJson(respHeaders) + ',' + this.jsJson(text) + ',false)');
+          }, 300);
         }
         try {
           req.destroy();
