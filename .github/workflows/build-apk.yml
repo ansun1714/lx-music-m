@@ -39,11 +39,8 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: 准备 Android SDK
-        uses: android-actions/setup-android@v3
-
-      # SDK 安装 + 逻辑冒烟 + 无 Gradle 构建全放一个步骤，输出统一落到 ci-logs/build.log
-      # runner.temp 只能在步骤里用，所以工作目录用 $RUNNER_TEMP 导出给 build.py
+      # SDK 安装、逻辑冒烟、无 Gradle 构建全放一个步骤，输出统一落到 ci-logs/build.log
+      # 不用第三方 setup-android：它失败时看不到原因，这里自己下 cmdline-tools
       - name: 构建 signed APK
         env:
           LX_KEYSTORE_B64: ${{ secrets.LX_KEYSTORE_B64 }}
@@ -52,15 +49,26 @@ jobs:
           mkdir -p ci-logs
           {
             echo "== 环境 =="
-            echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
             java -version 2>&1 | head -n 2
             node --version
-            echo "== 安装 SDK 组件 =="
-            sdkmanager --version
-            sdkmanager --install "platforms;android-34" "build-tools;35.0.0"
+            python3 --version
+            export ANDROID_SDK_ROOT="$RUNNER_TEMP/android-sdk"
+            mkdir -p "$ANDROID_SDK_ROOT"
+            echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+            echo "== 下载 cmdline-tools =="
+            mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+            curl -fsSL -o /tmp/cmdline-tools.zip \
+              https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+            unzip -q /tmp/cmdline-tools.zip -d "$ANDROID_SDK_ROOT/cmdline-tools"
+            mv "$ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools" "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+            SM="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+            "$SM" --version
+            echo "== 接受许可 + 安装组件 =="
+            yes | "$SM" --licenses > /dev/null 2>&1 || true
+            "$SM" --install "platforms;android-34" "build-tools;35.0.0"
             echo "== SDK 目录 =="
-            ls -1 "$ANDROID_SDK_ROOT/platforms" || true
-            ls -1 "$ANDROID_SDK_ROOT/build-tools" || true
+            ls -1 "$ANDROID_SDK_ROOT/platforms"
+            ls -1 "$ANDROID_SDK_ROOT/build-tools"
             echo "== 工作目录 =="
             echo "LX_BUILD_WORK=$RUNNER_TEMP/lx-build" >> "$GITHUB_ENV"
             echo "LX_KEYSTORE_DIR=$RUNNER_TEMP/lx-keystore" >> "$GITHUB_ENV"
@@ -71,12 +79,25 @@ jobs:
             else
               echo "未配置 LX_KEYSTORE_B64，本次由构建脚本生成临时 keystore"
             fi
+            echo "== 版本号一致性 =="
+            python3 - <<'PY'
+          import re, sys, pathlib
+          bp = pathlib.Path('android/build.py').read_text(encoding='utf-8')
+          mf = pathlib.Path('android/AndroidManifest.xml').read_text(encoding='utf-8')
+          name = re.search(r'VERSION_NAME = (?:os\.environ\.get\("LX_VERSION_NAME", )?"([^"]+)"', bp).group(1)
+          code = re.search(r'VERSION_CODE = (?:os\.environ\.get\("LX_VERSION_CODE", )?"([^"]+)"', bp).group(1)
+          mname = re.search(r'android:versionName="([^"]+)"', mf).group(1)
+          mcode = re.search(r'android:versionCode="([^"]+)"', mf).group(1)
+          print("build.py %s (%s) / manifest %s (%s)" % (name, code, mname, mcode))
+          if (name, code) != (mname, mcode):
+              sys.exit("版本号不一致：请同步 android/build.py 与 AndroidManifest.xml")
+          PY
             echo "== 生成单文件版 =="
             node evidence/build-standalone.js
             echo "== 逻辑冒烟 =="
             node evidence/smoke-test.js
             echo "== 构建 APK =="
-            python android/build.py
+            python3 android/build.py
             echo "== 产物 =="
             ls -l LXMusic-v*.apk
           } 2>&1 | tee ci-logs/build.log
@@ -116,7 +137,7 @@ jobs:
           if [ -f ci-logs/build.log ]; then
             tail -c 150000 ci-logs/build.log > ci-logs/last-failure.log
           else
-            echo "构建步骤未启动，失败发生在 setup 阶段（checkout / node / java / android sdk）" > ci-logs/last-failure.log
+            echo "构建步骤未启动，失败发生在 setup 阶段（checkout / node / java）" > ci-logs/last-failure.log
           fi
           git config user.name 'ci-bot'
           git config user.email 'ci-bot@users.noreply.github.com'
