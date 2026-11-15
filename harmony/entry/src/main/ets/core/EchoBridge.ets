@@ -84,9 +84,7 @@ export class EchoBridge {
   private httpCalls: Map<string, http.HttpRequest> = new Map<string, http.HttpRequest>();
   private downloads: Map<string, DownloadJob> = new Map<string, DownloadJob>();
   private pickAcked: boolean = false;
-  /** 串行 JS 注入队列（见 runJs 注释） */
-  private jsChain: Promise<void> = Promise.resolve();
-  /** 尚未执行完成的 runJavaScript 数量（仅日志用，逻辑已改为 jsChain） */
+  /** 尚未执行完成的 runJavaScript 数量，用于保证分块先于 onResponse 落地 */
   private jsPending: number = 0;
   /** 下载完成后是否自动拉起系统保存框（对应设置项「完成后自动保存到设备」） */
   private autoExport: boolean = true;
@@ -108,23 +106,24 @@ export class EchoBridge {
     if (w === null) {
       return;
     }
-    // 串行队列：保证分块先于 onResponse 落地，且不用计数器（计数器跨线程自增/自减有竞态，
-    // 曾导致 jsPending 永远不为 0，每次响应都白等最多 6 秒 -> 搜索慢、播放打结）
-    this.jsChain = this.jsChain.then(() => {
-      return w.runJavaScript(code).then(() => {
-      }).catch((err: BusinessError) => {
-        hilog.error(DOMAIN, TAG, 'runJavaScript failed: %{public}s', err.message);
-      });
+    this.jsPending++;
+    w.runJavaScript(code).then(() => {
+      this.jsPending--;
+    }).catch((err: BusinessError) => {
+      this.jsPending--;
+      hilog.error(DOMAIN, TAG, 'runJavaScript failed: %{public}s', err.message);
     });
   }
 
-  /** 等 queue 里的 JS 注入全部执行完再回调 */
+  /** 等 queue 里的 JS 注入全部执行完再回调，避免 onResponse 抢在分块前面 */
   private waitJsIdle(fn: () => void, tries: number): void {
-    this.jsChain.then(() => {
+    if (this.jsPending === 0 || tries <= 0) {
       fn();
-    }).catch(() => {
-      fn();
-    });
+      return;
+    }
+    setTimeout(() => {
+      this.waitJsIdle(fn, tries - 1);
+    }, 20);
   }
 
   private jsJson(v: string | number | boolean): string {
