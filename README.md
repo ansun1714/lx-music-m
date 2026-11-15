@@ -119,10 +119,23 @@ Pop-Location
 **HAP 现状与限制**：
 
 - CI 只出**未签名** HAP，装机前要自己签（和 v2raym-hos 一样，签名证书涉及华为账号，不进 CI）。
-- 鸿蒙壳目前只有 ArkWeb 容器 + INTERNET 权限，**没有移植 Android 的 EchoBridge**：
-  界面、歌单、榜单、设置都能渲染，导音源走 `<input type="file">` 浏览器回退；
-  下载/落盘、音效接管、原生文件选择这些依赖桥的能力在鸿蒙侧尚未实现。
-  后续要补的是 ArkTS 侧 `EchoBridge` 同名对象（http / 文件 / 下载），共用同一份 app.js。
+- `EchoBridge` 已在 ArkTS 侧落地（`harmony/entry/src/main/ets/core/EchoBridge.ets`），
+  与 Android 的 `MainActivity` 同名同签名，页面侧 `app/` 的代码一行都不改：
+  `httpRequest / cancelRequest`（分块 Base64 回传、24MB/8MB 上限）、
+  `downloadStart / downloadCancel / downloadClear / downloadPartialSize`（流式落盘 + Range 续传）、
+  `saveDownloadStart|Chunk|Finish / saveText`、`pickScript / pickScriptPull / pickScriptAck`、
+  `localMediaUrl`、`toast / exitApp`；回调仍是 `LXHttp` / `LXDownloadBridge` / `LXFilePick` 三个对象。
+- 与 APK 的两处语义差异（鸿蒙没有等价物）：
+  1. 下载落盘到应用沙箱 `filesDir/downloads`，不是公共 `Download/LX Music`；导出到文件管理器待补。
+  2. `mediaProxyBase()` 返回空串（不启用应用内 HTTPS 媒体代理），音效改走 `httpRequest` 取字节 → Blob → Web Audio。
+- 待真机验证：ArkWeb 对 `file://` 音频的加载与 Range 支持、Web Audio 音效链路、
+  `runJavaScript` 注入 180KB 分块的频率开销（不行就换 MessagePort）。
+- 已构建成功样本：Release `hap-latest`，`entry-default-unsigned.hap` 545,631 B。
+
+**HAP 本地签名**（装真机前必须做）：用 DevEco Studio 打开 `harmony/`，在
+Project Structure → Signing Configs 勾选 Automatic（登录华为账号）生成调试证书；
+或手工在 `harmony/build-profile.json5` 的 `signingConfigs` 里填 `.p12 / .cer / .p7b` 三件套，
+再跑一次 `assembleHap` 产出已签名包。
 
 
 **签名说明**：CI 每次跑都是全新容器，默认会在临时目录新生成一个 keystore，
