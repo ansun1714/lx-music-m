@@ -812,7 +812,14 @@ export class EchoBridge {
         continue;
       }
       srcs.push(src);
-      names.push(this.safeName(items[i].name));
+      let nm: string = this.safeName(items[i].name);
+      if (nm.lastIndexOf('.') < 0) {
+        const dot: number = src.lastIndexOf('.');
+        if (dot > 0) {
+          nm = nm + src.substring(dot);
+        }
+      }
+      names.push(nm);
     }
     if (srcs.length === 0) {
       this.toast('文件不存在');
