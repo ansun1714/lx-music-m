@@ -20,6 +20,8 @@ import { util, taskpool } from '@kit.ArkTS';
 import { http } from '@kit.NetworkKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { picker } from '@kit.CoreFileKit';
+import { fileShare } from '@kit.CoreFileKit';
+import { preferences } from '@kit.ArkData';
 import { promptAction } from '@kit.ArkUI';
 import { webview } from '@kit.ArkWeb';
 import { BusinessError } from '@kit.BasicServicesKit';
@@ -86,10 +88,13 @@ export class EchoBridge {
   private jsPending: number = 0;
   /** 下载完成后是否自动拉起系统保存框（对应设置项「完成后自动保存到设备」） */
   private autoExport: boolean = true;
+  /** 用户选定的导出目录 URI（通过「选择文件夹」拿到并持久化授权）；非空时下载完成直接写入，不再弹框 */
+  private saveDirUri: string = '';
 
   init(ctx: common.UIAbilityContext, web: webview.WebviewController): void {
     this.ctx = ctx;
     this.web = web;
+    this.loadSaveDir();
   }
 
   /* ------------------------------------------------------------ 基础设施 */
@@ -527,9 +532,13 @@ export class EchoBridge {
       this.runJs('window.LXDownloadBridge&&LXDownloadBridge.onDone(' + this.jsJson(key) + ',' +
         this.jsJson(job.destPath) + ',' + job.received + ')');
       if (this.autoExport) {
-        // 设置里开了「完成后自动保存到设备」：直接拉起系统保存框，默认落在「下载」目录
+        // 设置里开了「完成后自动保存到设备」：已选文件夹则零弹框写入，否则拉起系统保存框
         const name: string = job.destPath.substring(job.destPath.lastIndexOf('/') + 1);
-        this.saveSandboxToUserFile(job.destPath, this.safeName(name), '');
+        if (this.saveDirUri.length > 0) {
+          this.saveToDir(job.destPath, this.safeName(name));
+        } else {
+          this.saveSandboxToUserFile(job.destPath, this.safeName(name), '');
+        }
       }
     });
   }
@@ -647,6 +656,102 @@ export class EchoBridge {
   }
 
   /**
+   * 让用户选一个「下载保存文件夹」，并持久化读写授权。
+   * 之后下载完成即可零弹框直接写入该目录。
+   * JS: EchoBridge.pickExportDir() → window.LXSaveDir.onDir(uri) / onFail(msg)
+   */
+  pickExportDir(): void {
+    const opts: picker.DocumentSelectOptions = new picker.DocumentSelectOptions();
+    opts.selectMode = picker.DocumentSelectMode.FOLDER;
+    const vp: picker.DocumentViewPicker = new picker.DocumentViewPicker(this.ctx);
+    vp.select(opts).then((uris: string[]) => {
+      if (uris === null || uris === undefined || uris.length === 0) {
+        return;
+      }
+      let uri: string = uris[0];
+      if (uri.endsWith('/')) {
+        uri = uri.substring(0, uri.length - 1);
+      }
+      this.saveDirUri = uri;
+      this.persistSaveDir(uri);
+      hilog.info(DOMAIN, TAG, 'export dir picked: %{public}s', uri);
+      // 目录授权持久化：失败不影响本次会话使用
+      fileShare.persistPermission([{ uri: uri, operationMode: fileShare.OperationMode.READ_WRITE }])
+        .then(() => {
+          hilog.info(DOMAIN, TAG, 'export dir permission persisted');
+        })
+        .catch((err: BusinessError) => {
+          hilog.warn(DOMAIN, TAG, 'persist dir permission failed: %{public}s', err.message);
+        });
+      this.runJs('window.LXSaveDir&&window.LXSaveDir.onDir(' + this.jsJson(uri) + ')');
+      this.toast('已设置保存文件夹');
+    }).catch((err: BusinessError) => {
+      hilog.error(DOMAIN, TAG, 'pick dir failed: %{public}s', err.message);
+      this.runJs('window.LXSaveDir&&window.LXSaveDir.onFail(' + this.jsJson('当前系统不支持选择文件夹') + ')');
+      this.toast('选择文件夹失败，可继续用「保存到文件」逐个保存');
+    });
+  }
+
+  /** JS 就绪后由页面调用：把上次选定的保存文件夹回推给前端 */
+  restoreExportDir(): void {
+    this.loadSaveDir();
+  }
+
+  /** 把已设置的目录记到 preferences，重启后自动恢复 */
+  private persistSaveDir(uri: string): void {
+    if (this.ctx === null) {
+      return;
+    }
+    preferences.getPreferences(this.ctx, 'lx_settings').then((pref: preferences.Preferences) => {
+      pref.putSync('export_dir', uri);
+      pref.flush();
+    }).catch((err: BusinessError) => {
+      hilog.warn(DOMAIN, TAG, 'save export dir pref failed: %{public}s', err.message);
+    });
+  }
+
+  /** 启动时恢复上次选的目录，并重新激活持久化授权 */
+  private loadSaveDir(): void {
+    if (this.ctx === null) {
+      return;
+    }
+    preferences.getPreferences(this.ctx, 'lx_settings').then((pref: preferences.Preferences) => {
+      const uri: string = pref.getSync('export_dir', '') as string;
+      if (uri === null || uri === undefined || uri.length === 0) {
+        return;
+      }
+      this.saveDirUri = uri;
+      fileShare.activatePermission([{ uri: uri, operationMode: fileShare.OperationMode.READ_WRITE }])
+        .then(() => {
+          hilog.info(DOMAIN, TAG, 'export dir restored: %{public}s', uri);
+          this.runJs('window.LXSaveDir&&window.LXSaveDir.onDir(' + this.jsJson(uri) + ')');
+        })
+        .catch((err: BusinessError) => {
+          hilog.warn(DOMAIN, TAG, 'activate dir permission failed: %{public}s', err.message);
+          this.saveDirUri = '';
+        });
+    }).catch((err: BusinessError) => {
+      hilog.warn(DOMAIN, TAG, 'load export dir pref failed: %{public}s', err.message);
+    });
+  }
+
+  /**
+   * 直接写入已选目录（零弹框）。失败时回退到系统保存框，保证用户总能拿到文件。
+   */
+  private saveToDir(srcPath: string, name: string): void {
+    const target: string = this.saveDirUri + '/' + name;
+    hilog.info(DOMAIN, TAG, 'export to dir: %{public}s', target);
+    taskpool.execute(copyFileToUri, srcPath, target).then((res: Object) => {
+      hilog.info(DOMAIN, TAG, 'export to dir ok bytes=%{public}s', String(res));
+      this.toast('已保存到所选文件夹');
+    }).catch((err: BusinessError) => {
+      hilog.warn(DOMAIN, TAG, 'export to dir failed: %{public}s', err.message);
+      this.toast('所选文件夹无权限写入，改用系统保存框');
+      this.saveSandboxToUserFile(srcPath, name, '');
+    });
+  }
+
+  /**
    * 导出已下载的文件到用户可见目录。
    * JS: EchoBridge.exportDownload(path | 文件名, mime)
    */
@@ -658,6 +763,10 @@ export class EchoBridge {
     }
     const name: string = this.safeName(src.substring(src.lastIndexOf('/') + 1));
     hilog.info(DOMAIN, TAG, 'export download: %{public}s', src);
+    if (this.saveDirUri.length > 0) {
+      this.saveToDir(src, name);
+      return;
+    }
     this.saveSandboxToUserFile(src, name, mime);
   }
 

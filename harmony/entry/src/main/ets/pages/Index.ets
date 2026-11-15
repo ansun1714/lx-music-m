@@ -40,7 +40,7 @@ struct Index {
             'httpRequest', 'cancelRequest',
             'downloadStart', 'downloadCancel', 'downloadClear', 'downloadPartialSize',
             'saveDownloadStart', 'saveDownloadChunk', 'saveDownloadFinish', 'saveText',
-            'exportDownload', 'setAutoExport',
+            'exportDownload', 'setAutoExport', 'pickExportDir',
             'pickScript', 'pickScriptPull', 'pickScriptAck',
             'toast', 'exitApp'
           ],
@@ -54,6 +54,8 @@ struct Index {
         })
         .onPageEnd(() => {
           hilog.info(0x0D00, TAG, 'web page loaded');
+          // JS 就绪后再把上次选定的保存文件夹回推给前端
+          this.bridge.restoreExportDir();
         })
         .onErrorReceive(() => {
           hilog.error(0x0D00, TAG, 'web resource error');

@@ -59,6 +59,7 @@
       showRoma: true, s2t: false, desktopLyric: false, fontShadow: false,
       playbackRate: 1, offline: false, audioQuality: '320k', logUserApi: false,
       downloadQuality: '320k', dlParallel: 2, dlAuto: true, downloadDir: 'Download/LX Music',
+    exportDirUri: '',
       showLyric: true
     },
     sync: { addr: '', port: '', code: '', connected: false, log: [] },
@@ -76,6 +77,17 @@
       try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
     }, 120);
   }
+  // 鸿蒙侧「选择下载文件夹」的回调：拿到目录 URI 后记住，之后下载完成直接写入、不再弹窗
+  window.LXSaveDir = {
+    onDir: function (uri) {
+      S.settings.exportDirUri = String(uri || '');
+      save();
+      try { if (typeof renderView === 'function') renderView(); } catch (e) {}
+    },
+    onFail: function (msg) {
+      try { toast(msg || '选择文件夹失败'); } catch (e) {}
+    }
+  };
   function restore() {
     var raw;
     try { raw = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return; }
@@ -730,19 +742,28 @@
         '</div>';
     } else if (it.type === 'dlpath') {
       // v3.12.0：下载歌曲落盘目录。预置几个常用相对路径，另可自定义
-      var cur = DL.dirOf();
-      var presets = DL.DL_PRESETS || [];
-      var inPreset = presets.some(function (p) { return p[0] === cur; });
-      extra = '<select data-act="dl-path">' + presets.map(function (p) {
-          return '<option value="' + esc(p[0]) + '"' + (cur === p[0] ? ' selected' : '') + '>' +
-            esc(p[1]) + '</option>';
-        }).join('') +
-        '<option value="__custom"' + (inPreset ? '' : ' selected') + '>' +
-          esc('自定义目录…') + '</option>' +
-        '</select>';
-      desc = (window.EchoBridge && typeof window.EchoBridge.exportDownload === 'function')
-        ? '保存到应用沙箱，下载完成可点「保存到文件」导出到文件管理器'
-        : '保存到 /storage/emulated/0/' + cur + '（Android 10+ 走 MediaStore，无需存储权限）';
+      var isHap = !!(window.EchoBridge && typeof window.EchoBridge.pickExportDir === 'function');
+      if (isHap) {
+        // 鸿蒙：系统不允许静默写入任意公共目录，改为「选一个文件夹并持久授权」，之后自动写入、不再弹框
+        var dirUri = S.settings.exportDirUri || '';
+        extra = '<button class="btn sm" data-act="dl-dir-pick">' +
+          esc(dirUri ? '重新选择' : '选择文件夹') + '</button>';
+        desc = dirUri
+          ? '已选：' + decodeURIComponent(String(dirUri).split('/').slice(-2).join('/')) + '，下载完成自动写入'
+          : '未选择：默认保存到应用沙箱，点「保存到文件」逐个导出';
+      } else {
+        var cur = DL.dirOf();
+        var presets = DL.DL_PRESETS || [];
+        var inPreset = presets.some(function (p) { return p[0] === cur; });
+        extra = '<select data-act="dl-path">' + presets.map(function (p) {
+            return '<option value="' + esc(p[0]) + '"' + (cur === p[0] ? ' selected' : '') + '>' +
+              esc(p[1]) + '</option>';
+          }).join('') +
+          '<option value="__custom"' + (inPreset ? '' : ' selected') + '>' +
+            esc('自定义目录…') + '</option>' +
+          '</select>';
+        desc = '保存到 /storage/emulated/0/' + cur + '（Android 10+ 走 MediaStore，无需存储权限）';
+      }
     } else if (it.type === 'dlquality') {
       var dq = Q.normalize(S.settings.downloadQuality || DL.opts.quality) || '320k';
       extra = '<select data-act="dl-quality">' + Q.PRIORITY.map(function (q) {
@@ -2067,6 +2088,12 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
           try { window.EchoBridge.setAutoExport(node.checked ? '1' : '0'); } catch (e) {}
         }
         save();
+        return;
+      }
+      case 'dl-dir-pick': {
+        if (window.EchoBridge && typeof window.EchoBridge.pickExportDir === 'function') {
+          try { window.EchoBridge.pickExportDir(); } catch (e) {}
+        }
         return;
       }
       case 'dl-path': {
