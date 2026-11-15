@@ -1,19 +1,27 @@
 import { webview } from '@kit.ArkWeb';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import { common } from '@kit.AbilityKit';
+import { EchoBridge } from '../core/EchoBridge';
 
 const TAG: string = 'LXMusicHos';
 
 /**
- * 全屏 ArkWeb 容器。
+ * 全屏 ArkWeb 容器 + EchoBridge。
  *
- * - src 用 $rawfile('index.html')：界面被打包进 HAP，不依赖网络。
- * - domStorageAccess / databaseAccess 必须开，界面靠 localStorage 记播放队列和设置。
- * - 鸿蒙侧暂无 EchoBridge 桥接，app.js 会自动退化（fetch 直连 + <input type=file> 导音源）。
+ * 界面是 rawfile/index.html（由 evidence/build-standalone.js 打包同一份 app/），
+ * 原生能力通过 javaScriptProxy 暴露成 window.EchoBridge，与 Android 壳同名同签名。
  */
 @Entry
 @Component
 struct Index {
   private controller: webview.WebviewController = new webview.WebviewController();
+  private bridge: EchoBridge = new EchoBridge();
+
+  aboutToAppear(): void {
+    const ctx = getContext(this) as common.UIAbilityContext;
+    this.bridge.init(ctx, this.controller);
+    hilog.info(0x0001, TAG, 'bridge ready');
+  }
 
   build() {
     Column() {
@@ -24,6 +32,19 @@ struct Index {
         .fileAccess(true)
         .imageAccess(true)
         .zoomAccess(false)
+        .javaScriptProxy({
+          object: this.bridge,
+          name: 'EchoBridge',
+          methodList: [
+            'mediaProxyBase', 'localMediaUrl',
+            'httpRequest', 'cancelRequest',
+            'downloadStart', 'downloadCancel', 'downloadClear', 'downloadPartialSize',
+            'saveDownloadStart', 'saveDownloadChunk', 'saveDownloadFinish', 'saveText',
+            'pickScript', 'pickScriptPull', 'pickScriptAck',
+            'toast', 'exitApp'
+          ],
+          controller: this.controller
+        })
         .onPageEnd(() => {
           hilog.info(0x0001, TAG, 'web page loaded');
         })
