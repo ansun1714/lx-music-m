@@ -750,7 +750,7 @@
           esc(dirUri ? '重新选择' : '选择文件夹') + '</button>';
         desc = dirUri
           ? '已选：' + decodeURIComponent(String(dirUri).split('/').slice(-2).join('/')) + '，下载完成自动写入'
-          : '未选择：默认保存到应用沙箱，点「保存到文件」逐个导出';
+          : '先点一次「保存到文件」即可自动记住该目录，之后下载完成直接写入、不再弹窗';
       } else {
         var cur = DL.dirOf();
         var presets = DL.DL_PRESETS || [];

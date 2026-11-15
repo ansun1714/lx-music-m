@@ -633,6 +633,11 @@ export class EchoBridge {
       const uri: string = uris[0];
       taskpool.execute(copyFileToUri, srcPath, uri).then((res: Object) => {
         hilog.info(DOMAIN, TAG, 'export ok: %{public}s bytes=%{public}s', uri, String(res));
+        // 记住这次保存所在的目录：下次下载完成尝试直接写入，成功即零弹框
+        const slash: number = uri.lastIndexOf('/');
+        if (slash > 0 && uri.indexOf('://') > 0) {
+          this.applySaveDir(uri.substring(0, slash));
+        }
         this.toast('已保存到文件管理器');
       }).catch((err: BusinessError) => {
         hilog.error(DOMAIN, TAG, 'export write failed: %{public}s',
@@ -661,9 +666,14 @@ export class EchoBridge {
    * JS: EchoBridge.pickExportDir() → window.LXSaveDir.onDir(uri) / onFail(msg)
    */
   pickExportDir(): void {
+    const c: common.UIAbilityContext | null = this.ctx;
+    if (c === null) {
+      return;
+    }
     const opts: picker.DocumentSelectOptions = new picker.DocumentSelectOptions();
-    opts.selectMode = picker.DocumentSelectMode.FOLDER;
-    const vp: picker.DocumentViewPicker = new picker.DocumentViewPicker(this.ctx);
+    // SDK 15 的枚举只声明了 FILE；FOLDER(1) 在新系统上才生效，不支持时 select() 会抛错并走回退
+    opts.selectMode = 1 as picker.DocumentSelectMode;
+    const vp: picker.DocumentViewPicker = new picker.DocumentViewPicker(c);
     vp.select(opts).then((uris: string[]) => {
       if (uris === null || uris === undefined || uris.length === 0) {
         return;
@@ -672,24 +682,29 @@ export class EchoBridge {
       if (uri.endsWith('/')) {
         uri = uri.substring(0, uri.length - 1);
       }
-      this.saveDirUri = uri;
-      this.persistSaveDir(uri);
-      hilog.info(DOMAIN, TAG, 'export dir picked: %{public}s', uri);
-      // 目录授权持久化：失败不影响本次会话使用
-      fileShare.persistPermission([{ uri: uri, operationMode: fileShare.OperationMode.READ_WRITE }])
-        .then(() => {
-          hilog.info(DOMAIN, TAG, 'export dir permission persisted');
-        })
-        .catch((err: BusinessError) => {
-          hilog.warn(DOMAIN, TAG, 'persist dir permission failed: %{public}s', err.message);
-        });
-      this.runJs('window.LXSaveDir&&window.LXSaveDir.onDir(' + this.jsJson(uri) + ')');
+      this.applySaveDir(uri);
       this.toast('已设置保存文件夹');
     }).catch((err: BusinessError) => {
       hilog.error(DOMAIN, TAG, 'pick dir failed: %{public}s', err.message);
       this.runJs('window.LXSaveDir&&window.LXSaveDir.onFail(' + this.jsJson('当前系统不支持选择文件夹') + ')');
-      this.toast('选择文件夹失败，可继续用「保存到文件」逐个保存');
+      this.toast('当前系统不支持选文件夹，先「保存到文件」一次即可自动记住目录');
     });
+  }
+
+  /** 记住目录并持久化读写授权 */
+  private applySaveDir(uri: string): void {
+    this.saveDirUri = uri;
+    this.persistSaveDir(uri);
+    hilog.info(DOMAIN, TAG, 'export dir set: %{public}s', uri);
+    fileShare.persistPermission([{
+      uri: uri,
+      operationMode: (fileShare.OperationMode.READ_MODE | fileShare.OperationMode.WRITE_MODE) as fileShare.OperationMode
+    }]).then(() => {
+      hilog.info(DOMAIN, TAG, 'export dir permission persisted');
+    }).catch((err: BusinessError) => {
+      hilog.warn(DOMAIN, TAG, 'persist dir permission failed: %{public}s', err.message);
+    });
+    this.runJs('window.LXSaveDir&&window.LXSaveDir.onDir(' + this.jsJson(uri) + ')');
   }
 
   /** JS 就绪后由页面调用：把上次选定的保存文件夹回推给前端 */
@@ -721,7 +736,10 @@ export class EchoBridge {
         return;
       }
       this.saveDirUri = uri;
-      fileShare.activatePermission([{ uri: uri, operationMode: fileShare.OperationMode.READ_WRITE }])
+      fileShare.activatePermission([{
+        uri: uri,
+        operationMode: (fileShare.OperationMode.READ_MODE | fileShare.OperationMode.WRITE_MODE) as fileShare.OperationMode
+      }])
         .then(() => {
           hilog.info(DOMAIN, TAG, 'export dir restored: %{public}s', uri);
           this.runJs('window.LXSaveDir&&window.LXSaveDir.onDir(' + this.jsJson(uri) + ')');
