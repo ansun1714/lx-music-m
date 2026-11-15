@@ -804,6 +804,8 @@
     h += '<div class="list-header"><button class="btn sm primary" data-act="dl-add-current">' +
       icon('download-2') + ' ' + esc(t('download_current', '下载当前列表 / 搜索结果')) + '</button>' +
       (st.error ? '<button class="btn sm" data-act="dl-retry-failed">重试失败 (' + st.error + ')</button>' : '') +
+      (window.EchoBridge && typeof window.EchoBridge.saveAllDownloads === 'function' && st.done
+        ? '<button class="btn sm" data-act="dl-save-all">全部保存</button>' : '') +
       '<button class="btn sm" data-act="dl-resume-all">' + esc(t('resume_all', '继续全部')) + '</button></div>';
     h += '<div class="set-row"><div class="sr-main"><div class="sr-name">' +
       esc(t('download_quality', '下载音质')) + '</div><div class="sr-desc">' +
@@ -1740,6 +1742,18 @@ case 'do-search': { var inp = $('searchInput'); doSearch(inp ? inp.value : S.sea
 
       case 'select-all': S.selected = contextIds().slice(); renderView(); return;
 
+      case 'dl-save-all': {
+        var items = [];
+        var all = DL.all ? DL.all() : [];
+        (all || []).forEach(function (j) {
+          if (j && j.state === 'done' && j.path) items.push({ path: j.path, name: String(j.name || 'export.bin') });
+        });
+        if (!items.length) { toast('没有可保存的文件'); return; }
+        if (window.EchoBridge && typeof window.EchoBridge.saveAllDownloads === 'function') {
+          try { window.EchoBridge.saveAllDownloads(JSON.stringify(items)); } catch (e) { toast('保存失败'); }
+        }
+        return;
+      }
       case 'download-selected': case 'dl-add-current': {
 
         var dlTracks = listTracksForDownload();

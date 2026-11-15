@@ -68,6 +68,11 @@ function copyFileToUri(srcPath: string, dstUri: string): number {
   return total;
 }
 
+interface SaveItem {
+  path: string;
+  name: string;
+}
+
 interface DownloadJob {
   partPath: string;
   destPath: string;
@@ -777,6 +782,62 @@ export class EchoBridge {
       // 目录授权失效时不弹框、不清空设置，交由用户手动导出；把错误码带回设置页便于排查
       this.toast('写入失败(' + code + ')，请在下载页点「保存到文件」');
       this.runJs('window.LXSaveDir&&window.LXSaveDir.onFail(' + this.jsJson(code + ' ' + msg) + ')');
+    });
+  }
+
+  /**
+   * 一键保存所有已完成下载：把文件名一次性交给系统保存框，返回多个 URI 后逐个复制。
+   * JS: EchoBridge.saveAllDownloads(JSON.stringify([{path,name},...]))
+   */
+  saveAllDownloads(listJson: string): void {
+    const c = this.ctx;
+    if (c === null) {
+      return;
+    }
+    let items: SaveItem[] = [];
+    try {
+      items = JSON.parse(listJson) as SaveItem[];
+    } catch (e) {
+      this.toast('参数错误');
+      return;
+    }
+    if (items === null || items === undefined || items.length === 0) {
+      return;
+    }
+    const names: string[] = [];
+    const srcs: string[] = [];
+    for (let i: number = 0; i < items.length; i++) {
+      const src: string = this.resolveDownloadPath(items[i].path);
+      if (src === '') {
+        continue;
+      }
+      srcs.push(src);
+      names.push(this.safeName(items[i].name));
+    }
+    if (srcs.length === 0) {
+      this.toast('文件不存在');
+      return;
+    }
+    const opt: picker.DocumentSaveOptions = new picker.DocumentSaveOptions();
+    opt.newFileNames = names;
+    const vp: picker.DocumentViewPicker = new picker.DocumentViewPicker(c);
+    vp.save(opt).then((uris: string[]) => {
+      if (uris === null || uris === undefined || uris.length === 0) {
+        return;
+      }
+      let okCount: number = 0;
+      for (let i: number = 0; i < uris.length && i < srcs.length; i++) {
+        // 每个文件单独复制，串行避免同时读写多个大文件
+        taskpool.execute(copyFileToUri, srcs[i], uris[i]).then(() => {
+          okCount++;
+        }).catch((err: BusinessError) => {
+          hilog.warn(DOMAIN, TAG, 'save all item failed: %{public}s', err.message);
+        });
+      }
+      this.toast('已开始保存 ' + srcs.length + ' 个文件');
+    }).catch((err: BusinessError) => {
+      hilog.error(DOMAIN, TAG, 'save all failed: %{public}s', err.message);
+      this.toast('批量保存失败');
     });
   }
 

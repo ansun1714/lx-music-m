@@ -40,7 +40,7 @@ struct Index {
             'httpRequest', 'cancelRequest',
             'downloadStart', 'downloadCancel', 'downloadClear', 'downloadPartialSize',
             'saveDownloadStart', 'saveDownloadChunk', 'saveDownloadFinish', 'saveText',
-            'exportDownload', 'setAutoExport', 'pickExportDir',
+            'exportDownload', 'setAutoExport', 'pickExportDir', 'saveAllDownloads',
             'pickScript', 'pickScriptPull', 'pickScriptAck',
             'toast', 'exitApp'
           ],
