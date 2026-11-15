@@ -54,8 +54,9 @@ struct Index {
         })
         .onPageEnd(() => {
           hilog.info(0x0D00, TAG, 'web page loaded');
-          // JS 就绪后再把上次选定的保存文件夹回推给前端
-          this.bridge.restoreExportDir();
+          // 注意：这里不要再调用 restoreExportDir()。它会触发 fileShare.activatePermission，
+          // 在部分机型上表现为「一打开应用就弹出系统文件管理器」，而本机又缺少
+          // FolderSelection 能力，目录授权本就不可用，故启动阶段完全不做任何 picker/授权动作。
         })
         .onErrorReceive(() => {
           hilog.error(0x0D00, TAG, 'web resource error');

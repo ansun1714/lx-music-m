@@ -112,16 +112,25 @@
     }
   }
 
+  /* 原版 user-api 里 musicUrl / lyric / pic 属「默认能力」：脚本未显式声明 actions 时也应视为支持。
+   * 只有脚本自己声明了 actions，才按声明过滤（与 lx-music 的兼容口径一致）。
+   * 之前只认 actions 声明，导致星海这类未声明 lyric 的音源被整条歌词链路跳过。 */
+  var IMPLICIT_ACTIONS = ['musicUrl', 'lyric', 'pic'];
+  function sourceHas(a, k, action) {
+    var acts = (a.sources[k].actions || []);
+    if (acts.length > 0) return acts.indexOf(action) >= 0;
+    return IMPLICIT_ACTIONS.indexOf(action) >= 0;
+  }
   function supports(a, action) {
     if (!a || a.status !== 'success') return false;
     return Object.keys(a.sources || {}).some(function (k) {
-      return (a.sources[k].actions || []).indexOf(action) >= 0;
+      return sourceHas(a, k, action);
     });
   }
   function sourceKeys(a, action) {
     var keys = [];
     Object.keys(a.sources || {}).forEach(function (k) {
-      if ((a.sources[k].actions || []).indexOf(action) >= 0) keys.push(k);
+      if (sourceHas(a, k, action)) keys.push(k);
     });
     return keys;
   }
