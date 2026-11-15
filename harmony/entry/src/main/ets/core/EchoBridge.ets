@@ -533,8 +533,7 @@ export class EchoBridge {
       }
       this.runJs('window.LXDownloadBridge&&LXDownloadBridge.onDone(' + this.jsJson(key) + ',' +
         this.jsJson(job.destPath) + ',' + job.received + ')');
-      if (this.autoExport && this.saveDirUri.length > 0) {
-        // 已设置保存文件夹：静默写入，不弹任何框
+      if (false) {
         const name: string = job.destPath.substring(job.destPath.lastIndexOf('/') + 1);
         this.saveToDir(job.destPath, this.safeName(name));
       }
@@ -793,10 +792,6 @@ export class EchoBridge {
     }
     const name: string = this.safeName(src.substring(src.lastIndexOf('/') + 1));
     hilog.info(DOMAIN, TAG, 'export download: %{public}s', src);
-    if (this.saveDirUri.length > 0) {
-      this.saveToDir(src, name);
-      return;
-    }
     this.saveSandboxToUserFile(src, name, mime);
   }
 

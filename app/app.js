@@ -746,11 +746,8 @@
       if (isHap) {
         // 鸿蒙：系统不允许静默写入任意公共目录，改为「选一个文件夹并持久授权」，之后自动写入、不再弹框
         var dirUri = S.settings.exportDirUri || '';
-        extra = '<button class="btn sm" data-act="dl-dir-pick">' +
-          esc(dirUri ? '重新选择' : '选择文件夹') + '</button>';
-        desc = dirUri
-          ? '已选：' + decodeURIComponent(String(dirUri).split('/').slice(-2).join('/')) + '，下载完成自动写入'
-          : '先点一次「保存到文件」即可自动记住该目录，之后下载完成直接写入、不再弹窗';
+        extra = '';
+        desc = '保存到应用沙箱；点「保存到文件」时系统会记住上次选的目录';
       } else {
         var cur = DL.dirOf();
         var presets = DL.DL_PRESETS || [];
