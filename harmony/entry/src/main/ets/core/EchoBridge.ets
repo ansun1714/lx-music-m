@@ -470,6 +470,39 @@ export class EchoBridge {
 
   /* ------------------------------------------------------------ 导入音源 */
 
+  /**
+   * 读 picker 返回的 uri。
+   * 注意：picker 给的是 docs:// URI，fs.readTextSync(uri) 读不了（真机实测直接抛错，
+   * 表现为「读取文件失败」），必须 openSync 后按字节读。
+   */
+  private readUriText(uri: string): string {
+    const file: fs.File = fs.openSync(uri, fs.OpenMode.READ_ONLY);
+    const parts: Uint8Array[] = [];
+    let total: number = 0;
+    try {
+      while (total < LIMIT_TEXT) {
+        const buf: ArrayBuffer = new ArrayBuffer(64 * 1024);
+        const n: number = fs.readSync(file.fd, buf);
+        if (n <= 0) {
+          break;
+        }
+        parts.push(new Uint8Array(buf.slice(0, n)));
+        total += n;
+      }
+    } finally {
+      fs.closeSync(file);
+    }
+    hilog.info(DOMAIN, TAG, 'pick read %{public}d bytes', total);
+    const merged: Uint8Array = new Uint8Array(total);
+    let off: number = 0;
+    for (const p of parts) {
+      merged.set(p, off);
+      off += p.byteLength;
+    }
+    const dec: util.TextDecoder = util.TextDecoder.create('utf-8');
+    return dec.decodeToString(merged);
+  }
+
   pickScript(): void {
     this.pickAcked = false;
     const c = this.ctx;
@@ -487,19 +520,34 @@ export class EchoBridge {
         return;
       }
       const uri: string = uris[0];
+      hilog.info(DOMAIN, TAG, 'picked uri: %{public}s', uri);
+      const name: string = uri.substring(uri.lastIndexOf('/') + 1);
+      // 与 Android 一致：先 __onStart 让 JS 进入接收态并计时，再分块投递
+      this.runJs('window.LXFilePick&&LXFilePick.__onStart(' + this.jsJson(name) + ')');
+      let text: string = '';
       try {
-        const text: string = fs.readTextSync(uri);
-        const name: string = uri.substring(uri.lastIndexOf('/') + 1);
-        const slice: number = 512 * 1024;
-        for (let off: number = 0; off < text.length; off += slice) {
-          const end: number = Math.min(off + slice, text.length);
-          this.runJs('window.LXFilePick&&LXFilePick.__onChunk(' + this.jsJson(text.substring(off, end)) + ')');
-        }
-        this.runJs('window.LXFilePick&&LXFilePick.__onDone(' + this.jsJson(name) + ')');
+        text = this.readUriText(uri);
       } catch (e) {
-        this.runJs('window.LXFilePick&&LXFilePick.__onFail("读取文件失败")');
+        const err = e as BusinessError;
+        const msg: string = err !== null && err !== undefined && err.message !== undefined
+          ? err.message : String(e);
+        hilog.error(DOMAIN, TAG, 'read uri failed: %{public}s', msg);
+        this.runJs('window.LXFilePick&&LXFilePick.__onFail(' + this.jsJson('读取文件失败：' + msg) + ')');
+        return;
       }
+      if (text.length === 0) {
+        this.runJs('window.LXFilePick&&LXFilePick.__onFail("文件内容为空")');
+        return;
+      }
+      const slice: number = 512 * 1024;
+      for (let off: number = 0; off < text.length; off += slice) {
+        const end: number = Math.min(off + slice, text.length);
+        this.runJs('window.LXFilePick&&LXFilePick.__onChunk(' + this.jsJson(text.substring(off, end)) + ')');
+      }
+      this.runJs('window.LXFilePick&&LXFilePick.__onDone(' + this.jsJson(name) + ')');
+      hilog.info(DOMAIN, TAG, 'pick delivered %{public}d chars', text.length);
     }).catch((err: BusinessError) => {
+      hilog.error(DOMAIN, TAG, 'picker failed: %{public}s', err.message || String(err.code));
       if (err.code === 14000001 || (err.message || '').indexOf('cancel') >= 0) {
         this.runJs('window.LXFilePick&&LXFilePick.__onFail("未选择文件")');
         return;
