@@ -145,12 +145,29 @@ jobs:
           git commit -m "ci: 记录失败日志 [skip ci]" || exit 0
           git push origin "HEAD:${{ github.head_ref || github.ref_name }}" || echo "日志回传失败"
 
-      - name: 打 tag 时附加到 Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: LXMusic-v*.apk
-          generate_release_notes: true
-          body: |
-            由 GitHub Actions 自动构建（`python android/build.py`，无 Gradle）。
-            APK 签名：CI 默认使用临时 keystore；配置 `LX_KEYSTORE_B64` Secret 后才会用固定签名。
+      # main 每次构建成功、或推送 v* tag 时，都把 APK 发/更新到 Release（同一个版本重复构建会覆盖资产）
+      - name: 发布到 Release
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          APK=$(ls LXMusic-v*.apk | head -n 1)
+          VERSION=${APK#LXMusic-v}
+          VERSION=${VERSION%.apk}
+          TAG="v$VERSION"
+          SIZE=$(stat -c %s "$APK")
+          SHA=$(sha256sum "$APK" | cut -d' ' -f1)
+          short=${GITHUB_SHA::7}
+          NOTES=$(printf '由 GitHub Actions 自动构建（`python3 android/build.py`，无 Gradle）。\n\n| 项 | 值 |\n|---|---|\n| APK | `%s` |\n| 大小 | %s B |\n| SHA-256 | `%s` |\n| 源码提交 | `%s` |\n\nAPK 签名：CI 默认使用临时 keystore，覆盖安装前需先卸载旧包；配置 `LX_KEYSTORE_B64` Secret 后改用固定签名。\n' "$APK" "$SIZE" "$SHA" "$short")
+
+          git fetch --tags --force --quiet || true
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG 已存在，覆盖资产"
+            gh release upload "$TAG" "$APK" --clobber
+            gh release edit "$TAG" --notes "$NOTES" --latest
+          else
+            echo "新建 Release $TAG"
+            gh release create "$TAG" "$APK" --title "LX Music 复现版 $TAG" --notes "$NOTES" --latest
+          fi
+          echo "已发布：$(gh release view "$TAG" --json url -q .url)"

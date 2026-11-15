@@ -63,13 +63,18 @@ APK 输出到仓库根目录，版本号在 `android/build.py` 的 `VERSION_NAME
 `workflow_dispatch` 都会在 `ubuntu-latest` 上跑
 
 ```
-setup JDK21 + Android SDK（platform 34 / build-tools 35.0.0）
+setup JDK21 + 自装 cmdline-tools（platform 34 / build-tools 35.0.0）
 → build-standalone.js → smoke-test.js（463 项，不过直接失败）
-→ python android/build.py（签名 + apksigner verify + aapt badging 校验）
-→ 上传 artifact「LXMusic-apk」→ 打 tag 时自动挂到 Release
+→ python3 android/build.py（签名 + apksigner verify + aapt badging 校验）
+→ 上传 artifact「LXMusic-apk」→ 非 PR 事件时发布到 Release
 ```
 
 产物信息（文件名、字节数、SHA-256）写在每次运行的 Step Summary 里。artifact 保留 14 天。
+
+**Release 发布规则**：`main` 上每次构建成功都会把 APK 发到 Release `v<版本>`
+（版本取自 `LXMusic-v3.13.7.apk` 的名字，即 `v3.13.7`），同一个版本重复构建是
+覆盖资产（`gh release upload --clobber`）并标记为 latest，不会堆出多个 Release。
+发新版时先把 `android/build.py` 和 `AndroidManifest.xml` 的版本号改掉，再 push（或打 tag）。
 
 **签名说明**：CI 每次跑都是全新容器，默认会在临时目录新生成一个 keystore，
 因此 CI 出的包签名与本地 `%TEMP%\lx-replica-keystore` 的包不同，直接覆盖安装会失败
