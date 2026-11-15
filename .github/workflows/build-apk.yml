@@ -1,0 +1,124 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # 中间产物与签名密钥都放在 runner 的临时目录（ASCII 路径，aapt2 在中文路径会报错）
+  LX_BUILD_WORK: ${{ runner.temp }}/lx-build
+  LX_KEYSTORE_DIR: ${{ runner.temp }}/lx-keystore
+  ANDROID_BUILD_TOOLS_VERSION: '35.0.0'
+
+jobs:
+  build:
+    name: 构建 signed APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 安装 JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: 准备 Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 安装 platform 34 与 build-tools 35.0.0
+        run: |
+          sdkmanager --install "platforms;android-34" "build-tools;35.0.0"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          ls "$ANDROID_SDK_ROOT/build-tools/35.0.0" | head -n 20
+
+      # 想用固定签名（能覆盖安装旧版本）就把 keystore 以 base64 存进仓库 Secret
+      - name: 还原固定签名密钥（可选）
+        if: env.LX_KEYSTORE_B64 != ''
+        env:
+          LX_KEYSTORE_B64: ${{ secrets.LX_KEYSTORE_B64 }}
+        run: |
+          mkdir -p "$LX_KEYSTORE_DIR"
+          echo "$LX_KEYSTORE_B64" | base64 -d > "$LX_KEYSTORE_DIR/lx-replica.jks"
+          echo "已还原固定 keystore"
+
+      - name: 版本号一致性检查
+        run: |
+          python - <<'PY'
+          import re, sys, pathlib
+          bp = pathlib.Path('android/build.py').read_text(encoding='utf-8')
+          mf = pathlib.Path('android/AndroidManifest.xml').read_text(encoding='utf-8')
+          name = re.search(r'VERSION_NAME = (?:os\.environ\.get\("LX_VERSION_NAME", )?"([^"]+)"', bp).group(1)
+          code = re.search(r'VERSION_CODE = (?:os\.environ\.get\("LX_VERSION_CODE", )?"([^"]+)"', bp).group(1)
+          mname = re.search(r'android:versionName="([^"]+)"', mf).group(1)
+          mcode = re.search(r'android:versionCode="([^"]+)"', mf).group(1)
+          print(f"build.py {name} ({code}) / manifest {mname} ({mcode})")
+          if (name, code) != (mname, mcode):
+              sys.exit("版本号不一致：请同步 android/build.py 与 AndroidManifest.xml")
+          PY
+
+      - name: 生成单文件版 standalone.html
+        run: node evidence/build-standalone.js
+
+      - name: 逻辑冒烟（纯 Node，不用设备）
+        run: node evidence/smoke-test.js
+
+      - name: 构建签名 APK（无 Gradle）
+        run: python android/build.py
+
+      - name: 记录产物信息
+        id: apk
+        run: |
+          APK=$(ls LXMusic-v*.apk | head -n 1)
+          SIZE=$(stat -c %s "$APK")
+          SHA=$(sha256sum "$APK" | cut -d' ' -f1)
+          echo "apk=$APK" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          {
+            echo "### 构建产物"
+            echo ""
+            echo "| 项 | 值 |"
+            echo "|---|---|"
+            echo "| 文件 | \`$APK\` |"
+            echo "| 大小 | $SIZE B |"
+            echo "| SHA-256 | \`$SHA\` |"
+            echo "| 提交 | \`$GITHUB_SHA\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "构建完成：$APK $SIZE B sha256=$SHA"
+
+      - name: 上传 APK（保留 14 天）
+        uses: actions/upload-artifact@v4
+        with:
+          name: LXMusic-apk
+          path: LXMusic-v*.apk
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: 打 tag 时附加到 Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: LXMusic-v*.apk
+          generate_release_notes: true
+          body: |
+            由 GitHub Actions 自动构建（`python android/build.py`，无 Gradle）。
+            APK 签名：CI 默认使用临时 keystore；配置 `LX_KEYSTORE_B64` Secret 后才会用固定签名。
