@@ -50,7 +50,9 @@ function copyFileToUri(srcPath: string, dstUri: string): number {
   let total: number = 0;
   try {
     while (true) {
-      const n: number = fs.readSync(src.fd, buf, { offset: 0, length: step });
+      // 注意：ReadOptions.offset 是文件偏移，传 0 会每轮从头重读、无限追加（真机曾写出 4.4GB 坏文件）。
+      // 这里不传 options，按 fd 当前位置顺序读，读到 EOF 返回 0。
+      const n: number = fs.readSync(src.fd, buf);
       if (n <= 0) {
         break;
       }
@@ -82,6 +84,8 @@ export class EchoBridge {
   private pickAcked: boolean = false;
   /** 尚未执行完成的 runJavaScript 数量，用于保证分块先于 onResponse 落地 */
   private jsPending: number = 0;
+  /** 下载完成后是否自动拉起系统保存框（对应设置项「完成后自动保存到设备」） */
+  private autoExport: boolean = true;
 
   init(ctx: common.UIAbilityContext, web: webview.WebviewController): void {
     this.ctx = ctx;
@@ -522,6 +526,11 @@ export class EchoBridge {
       }
       this.runJs('window.LXDownloadBridge&&LXDownloadBridge.onDone(' + this.jsJson(key) + ',' +
         this.jsJson(job.destPath) + ',' + job.received + ')');
+      if (this.autoExport) {
+        // 设置里开了「完成后自动保存到设备」：直接拉起系统保存框，默认落在「下载」目录
+        const name: string = job.destPath.substring(job.destPath.lastIndexOf('/') + 1);
+        this.saveSandboxToUserFile(job.destPath, this.safeName(name), '');
+      }
     });
   }
 
@@ -626,6 +635,15 @@ export class EchoBridge {
         err !== null && err !== undefined && err.message !== undefined ? err.message : '');
       this.toast('已取消保存');
     });
+  }
+
+  /**
+   * 设置开关：下载完成后是否自动弹出系统保存框。
+   * JS: EchoBridge.setAutoExport('1' | '0')
+   */
+  setAutoExport(flag: string): void {
+    this.autoExport = String(flag) === '1';
+    hilog.info(DOMAIN, TAG, 'autoExport=%{public}d', this.autoExport ? 1 : 0);
   }
 
   /**

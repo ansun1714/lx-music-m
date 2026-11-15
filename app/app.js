@@ -2063,6 +2063,9 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
       case 'dl-auto': {
         S.settings.dlAuto = !!node.checked;
         DL.opts.autoDeliver = !!node.checked;
+        if (window.EchoBridge && typeof window.EchoBridge.setAutoExport === 'function') {
+          try { window.EchoBridge.setAutoExport(node.checked ? '1' : '0'); } catch (e) {}
+        }
         save();
         return;
       }
@@ -2299,6 +2302,9 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
     DL.opts.quality = Q.normalize(S.settings.downloadQuality || DL.opts.quality) || '320k';
     DL.opts.parallel = Math.min(4, Math.max(1, Number(S.settings.dlParallel) || DL.opts.parallel || 2));
     DL.opts.autoDeliver = S.settings.dlAuto !== false;
+    if (window.EchoBridge && typeof window.EchoBridge.setAutoExport === 'function') {
+      try { window.EchoBridge.setAutoExport(DL.opts.autoDeliver ? '1' : '0'); } catch (e) {}
+    }
     // v3.12.0：下载目录同样要在启动时回填，否则「改了路径但下次安装回默认」
     DL.opts.dir = S.settings.downloadDir && String(S.settings.downloadDir).trim() || 'Download/LX Music';
     if (typeof DL.dirOf === 'function') DL.opts.dir = DL.dirOf();
