@@ -772,10 +772,12 @@ export class EchoBridge {
       hilog.info(DOMAIN, TAG, 'export to dir ok bytes=%{public}s', String(res));
       this.toast('已自动保存到所选文件夹');
     }).catch((err: BusinessError) => {
-      hilog.warn(DOMAIN, TAG, 'export to dir failed: %{public}s',
-        err !== null && err !== undefined && err.message !== undefined ? err.message : String(err));
-      // 目录授权失效时不弹框、不清空设置，交由用户手动导出
-      this.toast('写入所选文件夹失败，可在下载页点「保存到文件」导出');
+      const code: string = err !== null && err !== undefined && err.code !== undefined ? String(err.code) : '?';
+      const msg: string = err !== null && err !== undefined && err.message !== undefined ? err.message : String(err);
+      hilog.warn(DOMAIN, TAG, 'export to dir failed: %{public}s code=%{public}s', msg, code);
+      // 目录授权失效时不弹框、不清空设置，交由用户手动导出；把错误码带回设置页便于排查
+      this.toast('写入失败(' + code + ')，请在下载页点「保存到文件」');
+      this.runJs('window.LXSaveDir&&window.LXSaveDir.onFail(' + this.jsJson(code + ' ' + msg) + ')');
     });
   }
 
