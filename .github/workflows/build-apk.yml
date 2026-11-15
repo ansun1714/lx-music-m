@@ -16,9 +16,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # 中间产物与签名密钥都放在 runner 的临时目录（ASCII 路径，aapt2 在中文路径会报错）
-  LX_BUILD_WORK: ${{ runner.temp }}/lx-build
-  LX_KEYSTORE_DIR: ${{ runner.temp }}/lx-keystore
   ANDROID_BUILD_TOOLS_VERSION: '35.0.0'
 
 jobs:
@@ -51,17 +48,25 @@ jobs:
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
           ls "$ANDROID_SDK_ROOT/build-tools/35.0.0" | head -n 20
 
+      # 中间产物与签名密钥都放在 runner 临时目录（纯 ASCII，aapt2 在中文路径会报错）
+      # runner.temp 只能在步骤里用，所以这里用 $RUNNER_TEMP 并导出给后续步骤
+      - name: 准备临时目录
+        run: |
+          echo "LX_BUILD_WORK=$RUNNER_TEMP/lx-build" >> "$GITHUB_ENV"
+          echo "LX_KEYSTORE_DIR=$RUNNER_TEMP/lx-keystore" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/lx-build" "$RUNNER_TEMP/lx-keystore"
+
       # 想用固定签名（能覆盖安装旧版本）就把 keystore 以 base64 存进仓库 Secret
       - name: 还原固定签名密钥（可选）
         env:
           LX_KEYSTORE_B64: ${{ secrets.LX_KEYSTORE_B64 }}
         run: |
           if [ -n "$LX_KEYSTORE_B64" ]; then
-            mkdir -p "$LX_KEYSTORE_DIR"
             echo "$LX_KEYSTORE_B64" | base64 -d > "$LX_KEYSTORE_DIR/lx-replica.jks"
             printf '已还原固定 keystore（%s 字节）\n' "$(stat -c %s "$LX_KEYSTORE_DIR/lx-replica.jks")"
           else
             echo "未配置 LX_KEYSTORE_B64，本次由构建脚本临时生成 keystore"
+            rm -f "$LX_KEYSTORE_DIR/lx-replica.jks"
           fi
 
       - name: 版本号一致性检查
