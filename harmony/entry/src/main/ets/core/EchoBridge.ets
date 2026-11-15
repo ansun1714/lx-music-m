@@ -236,7 +236,7 @@ export class EchoBridge {
       this.waitJsIdle(() => {
         this.runJs('window.LXHttp&&LXHttp.onResponse(' + this.jsJson(key) + ',' + this.jsJson(msg) +
           ',0,"","{}","",false)');
-      }, 300);
+      }, 4);
     };
 
     const emitBinary = (u8: Uint8Array): void => {
@@ -288,7 +288,7 @@ export class EchoBridge {
         ',"",' + this.jsJson(respHeaders) + ',' + this.jsJson(bodyText) + ',' + binary + ')';
       this.waitJsIdle(() => {
         this.runJs(script);
-      }, 300);
+      }, 4);
     };
 
     this.runJs('window.LXHttp&&LXHttp.onChunkStart(' + this.jsJson(key) + ',0)');
@@ -384,14 +384,14 @@ export class EchoBridge {
           this.waitJsIdle(() => {
             this.runJs('window.LXHttp&&LXHttp.onResponse(' + this.jsJson(key) + ',null,' + code +
               ',"",' + this.jsJson(respHeaders) + ',"",true)');
-          }, 300);
+          }, 4);
         } else {
           const text: string = payload === null || payload === undefined ? '' : String(payload);
           hilog.info(DOMAIN, TAG, 'request done code=%{public}d chars=%{public}d', code, text.length);
           this.waitJsIdle(() => {
             this.runJs('window.LXHttp&&LXHttp.onResponse(' + this.jsJson(key) + ',null,' + code +
               ',"",' + this.jsJson(respHeaders) + ',' + this.jsJson(text) + ',false)');
-          }, 300);
+          }, 4);
         }
         try {
           req.destroy();
