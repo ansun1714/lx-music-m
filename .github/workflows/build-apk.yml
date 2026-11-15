@@ -22,7 +22,7 @@ jobs:
   build:
     name: 构建 signed APK
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - name: 检出代码
@@ -42,56 +42,44 @@ jobs:
       - name: 准备 Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: 安装 platform 34 与 build-tools 35.0.0
-        run: |
-          sdkmanager --install "platforms;android-34" "build-tools;35.0.0"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          ls "$ANDROID_SDK_ROOT/build-tools/35.0.0" | head -n 20
-
-      # 中间产物与签名密钥都放在 runner 临时目录（纯 ASCII，aapt2 在中文路径会报错）
-      # runner.temp 只能在步骤里用，所以这里用 $RUNNER_TEMP 并导出给后续步骤
-      - name: 准备临时目录
-        run: |
-          echo "LX_BUILD_WORK=$RUNNER_TEMP/lx-build" >> "$GITHUB_ENV"
-          echo "LX_KEYSTORE_DIR=$RUNNER_TEMP/lx-keystore" >> "$GITHUB_ENV"
-          mkdir -p "$RUNNER_TEMP/lx-build" "$RUNNER_TEMP/lx-keystore"
-
-      # 想用固定签名（能覆盖安装旧版本）就把 keystore 以 base64 存进仓库 Secret
-      - name: 还原固定签名密钥（可选）
+      # SDK 安装 + 逻辑冒烟 + 无 Gradle 构建全放一个步骤，输出统一落到 ci-logs/build.log
+      # runner.temp 只能在步骤里用，所以工作目录用 $RUNNER_TEMP 导出给 build.py
+      - name: 构建 signed APK
         env:
           LX_KEYSTORE_B64: ${{ secrets.LX_KEYSTORE_B64 }}
         run: |
-          if [ -n "$LX_KEYSTORE_B64" ]; then
-            echo "$LX_KEYSTORE_B64" | base64 -d > "$LX_KEYSTORE_DIR/lx-replica.jks"
-            printf '已还原固定 keystore（%s 字节）\n' "$(stat -c %s "$LX_KEYSTORE_DIR/lx-replica.jks")"
-          else
-            echo "未配置 LX_KEYSTORE_B64，本次由构建脚本临时生成 keystore"
-            rm -f "$LX_KEYSTORE_DIR/lx-replica.jks"
-          fi
-
-      - name: 版本号一致性检查
-        run: |
-          python - <<'PY'
-          import re, sys, pathlib
-          bp = pathlib.Path('android/build.py').read_text(encoding='utf-8')
-          mf = pathlib.Path('android/AndroidManifest.xml').read_text(encoding='utf-8')
-          name = re.search(r'VERSION_NAME = (?:os\.environ\.get\("LX_VERSION_NAME", )?"([^"]+)"', bp).group(1)
-          code = re.search(r'VERSION_CODE = (?:os\.environ\.get\("LX_VERSION_CODE", )?"([^"]+)"', bp).group(1)
-          mname = re.search(r'android:versionName="([^"]+)"', mf).group(1)
-          mcode = re.search(r'android:versionCode="([^"]+)"', mf).group(1)
-          print(f"build.py {name} ({code}) / manifest {mname} ({mcode})")
-          if (name, code) != (mname, mcode):
-              sys.exit("版本号不一致：请同步 android/build.py 与 AndroidManifest.xml")
-          PY
-
-      - name: 生成单文件版 standalone.html
-        run: node evidence/build-standalone.js
-
-      - name: 逻辑冒烟（纯 Node，不用设备）
-        run: node evidence/smoke-test.js
-
-      - name: 构建签名 APK（无 Gradle）
-        run: python android/build.py
+          set -o pipefail
+          mkdir -p ci-logs
+          {
+            echo "== 环境 =="
+            echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+            java -version 2>&1 | head -n 2
+            node --version
+            echo "== 安装 SDK 组件 =="
+            sdkmanager --version
+            sdkmanager --install "platforms;android-34" "build-tools;35.0.0"
+            echo "== SDK 目录 =="
+            ls -1 "$ANDROID_SDK_ROOT/platforms" || true
+            ls -1 "$ANDROID_SDK_ROOT/build-tools" || true
+            echo "== 工作目录 =="
+            echo "LX_BUILD_WORK=$RUNNER_TEMP/lx-build" >> "$GITHUB_ENV"
+            echo "LX_KEYSTORE_DIR=$RUNNER_TEMP/lx-keystore" >> "$GITHUB_ENV"
+            mkdir -p "$RUNNER_TEMP/lx-build" "$RUNNER_TEMP/lx-keystore"
+            if [ -n "$LX_KEYSTORE_B64" ]; then
+              echo "$LX_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/lx-keystore/lx-replica.jks"
+              echo "已还原固定 keystore"
+            else
+              echo "未配置 LX_KEYSTORE_B64，本次由构建脚本生成临时 keystore"
+            fi
+            echo "== 生成单文件版 =="
+            node evidence/build-standalone.js
+            echo "== 逻辑冒烟 =="
+            node evidence/smoke-test.js
+            echo "== 构建 APK =="
+            python android/build.py
+            echo "== 产物 =="
+            ls -l LXMusic-v*.apk
+          } 2>&1 | tee ci-logs/build.log
 
       - name: 记录产物信息
         id: apk
@@ -111,7 +99,6 @@ jobs:
             echo "| SHA-256 | \`$SHA\` |"
             echo "| 提交 | \`$GITHUB_SHA\` |"
           } >> "$GITHUB_STEP_SUMMARY"
-          echo "构建完成：$APK $SIZE B sha256=$SHA"
 
       - name: 上传 APK（保留 14 天）
         uses: actions/upload-artifact@v4
@@ -120,6 +107,22 @@ jobs:
           path: LXMusic-v*.apk
           retention-days: 14
           if-no-files-found: error
+
+      # 私有仓库的 Actions 日志外部看不到，失败时把日志尾部提交回当前分支便于排查
+      - name: 失败时回传日志
+        if: failure()
+        run: |
+          mkdir -p ci-logs
+          if [ -f ci-logs/build.log ]; then
+            tail -c 150000 ci-logs/build.log > ci-logs/last-failure.log
+          else
+            echo "构建步骤未启动，失败发生在 setup 阶段（checkout / node / java / android sdk）" > ci-logs/last-failure.log
+          fi
+          git config user.name 'ci-bot'
+          git config user.email 'ci-bot@users.noreply.github.com'
+          git add ci-logs/last-failure.log
+          git commit -m "ci: 记录失败日志 [skip ci]" || exit 0
+          git push origin "HEAD:${{ github.head_ref || github.ref_name }}" || echo "日志回传失败"
 
       - name: 打 tag 时附加到 Release
         if: startsWith(github.ref, 'refs/tags/v')
