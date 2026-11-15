@@ -1,0 +1,234 @@
+name: Build HAP
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # OpenHarmony 5.0.3-Release 公共 SDK（华为云镜像，无需华为账号）
+  OHOS_SDK_RELEASE: "5.0.3-Release"
+  SDK_API: "15"
+  SDK_ROOT: ${{ github.workspace }}/.ohos-sdk
+  HAP_MODULE: "entry@default"
+  HAP_PRODUCT: "default"
+  HVIGOR_VER: "5.19.8"
+  # @ohos/hvigor 只发布在华为源；这两个自包含 tarball 已镜像到 v2raym-hos 的 Release
+  HVIGOR_RELEASE_BASE: https://github.com/ansun1714/v2raym-hos/releases/download/hvigor-5.19.8
+
+jobs:
+  build:
+    name: hvigor assembleHap（未签名）
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 安装 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # SDK 约 4.3 GB，命中缓存就跳过下载
+      - name: 缓存 OpenHarmony SDK
+        id: sdk-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.SDK_ROOT }}/${{ env.SDK_API }}
+          key: ohos-sdk-${{ env.OHOS_SDK_RELEASE }}-api${{ env.SDK_API }}-linux-v3
+
+      - name: 下载 OpenHarmony SDK
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p ci-logs
+          {
+            url="https://repo.huaweicloud.com/openharmony/os/${OHOS_SDK_RELEASE}/ohos-sdk-windows_linux-public.tar.gz"
+            echo "== 下载 $url =="
+            curl -fSL --retry 5 --retry-delay 15 --connect-timeout 30 -o /tmp/ohos-sdk.tar.gz "$url"
+            ls -lh /tmp/ohos-sdk.tar.gz
+            df -h /tmp | tail -n 1
+            echo "== 解包 =="
+            mkdir -p /tmp/sdk-x
+            tar -xzf /tmp/ohos-sdk.tar.gz -C /tmp/sdk-x
+            rm -f /tmp/ohos-sdk.tar.gz
+            linux_dir="$(find /tmp/sdk-x -maxdepth 4 -type d -name linux -print -quit)"
+            test -n "$linux_dir"
+            echo "linux sdk dir: $linux_dir"
+            mkdir -p "$SDK_ROOT/${SDK_API}"
+            shopt -s nullglob
+            for z in "$linux_dir"/*.zip; do
+              echo "== unzip $(basename "$z") =="
+              unzip -q -o "$z" -d "$SDK_ROOT/${SDK_API}"
+              rm -f "$z"
+            done
+            manifest="$(find /tmp/sdk-x -maxdepth 3 -name 'manifest_tag.xml' -print -quit || true)"
+            if [ -n "$manifest" ]; then
+              cp -f "$manifest" "$SDK_ROOT/${SDK_API}/manifest_tag.xml" || true
+              cp -f "$manifest" "$SDK_ROOT/manifest_tag.xml" || true
+            fi
+            rm -rf /tmp/sdk-x
+            # 多包一层的布局拍平
+            if [ -d "$SDK_ROOT/${SDK_API}/${SDK_API}" ]; then
+              cp -a "$SDK_ROOT/${SDK_API}/${SDK_API}/." "$SDK_ROOT/${SDK_API}/"
+              rm -rf "$SDK_ROOT/${SDK_API}/${SDK_API}"
+            fi
+            for c in ets js native previewer toolchains; do
+              if [ -d "$SDK_ROOT/${SDK_API}/$c/$c" ]; then
+                mv "$SDK_ROOT/${SDK_API}/$c/$c" "$SDK_ROOT/${SDK_API}/$c.tmp"
+                rm -rf "$SDK_ROOT/${SDK_API}/$c"
+                mv "$SDK_ROOT/${SDK_API}/$c.tmp" "$SDK_ROOT/${SDK_API}/$c"
+              fi
+            done
+            echo "== SDK 布局 =="
+            ls -la "$SDK_ROOT/${SDK_API}"
+            test -f "$SDK_ROOT/${SDK_API}/ets/oh-uni-package.json"
+            test -d "$SDK_ROOT/${SDK_API}/toolchains"
+          } 2>&1 | tee ci-logs/sdk.log
+
+      - name: 缓存 hvigor tarball
+        uses: actions/cache@v4
+        with:
+          path: .hvigor-pkgs
+          key: hvigor-pkgs-${{ env.HVIGOR_VER }}
+
+      - name: 安装 hvigor
+        run: |
+          set -euo pipefail
+          mkdir -p ci-logs .hvigor-pkgs
+          {
+            mkdir -p harmony/node_modules/@ohos
+            for pkg in hvigor hvigor-ohos-plugin; do
+              tarball=".hvigor-pkgs/ohos-$pkg-${HVIGOR_VER}.tgz"
+              if [ ! -s "$tarball" ]; then
+                url="$HVIGOR_RELEASE_BASE/ohos-$pkg-${HVIGOR_VER}.tgz"
+                echo "下载 $url"
+                curl -fSL --retry 8 --retry-delay 10 --retry-all-errors --max-time 900 -o "$tarball" "$url"
+              fi
+              ls -lh "$tarball"
+              rm -rf "harmony/node_modules/@ohos/$pkg"
+              mkdir -p "harmony/node_modules/@ohos/$pkg"
+              tar -xzf "$tarball" -C "harmony/node_modules/@ohos/$pkg" --strip-components=1
+              test -f "harmony/node_modules/@ohos/$pkg/package.json"
+            done
+            test -f harmony/node_modules/@ohos/hvigor/bin/hvigor.js
+            echo "hvigor 就绪"
+          } 2>&1 | tee ci-logs/hvigor.log
+
+      - name: 生成 Web 资源
+        run: |
+          set -euo pipefail
+          node evidence/build-standalone.js
+          mkdir -p harmony/entry/src/main/resources/rawfile
+          cp app/standalone.html harmony/entry/src/main/resources/rawfile/index.html
+          ls -l harmony/entry/src/main/resources/rawfile/index.html
+
+      - name: 构建 HAP
+        run: |
+          set -euo pipefail
+          export OHOS_BASE_SDK_HOME="$SDK_ROOT"
+          export OHOS_SDK_HOME="$SDK_ROOT"
+          export PATH="$SDK_ROOT/${SDK_API}/toolchains:$PATH"
+          export NODE_OPTIONS="--max-old-space-size=8192"
+          mkdir -p ci-logs
+          {
+            cd harmony
+            node node_modules/@ohos/hvigor/bin/hvigor.js \
+              --mode module \
+              -p "module=${HAP_MODULE}" \
+              -p "product=${HAP_PRODUCT}" \
+              assembleHap --no-daemon
+            echo "== 产物 =="
+            find entry/build -name "*.hap" -type f -exec ls -lh {} \;
+          } 2>&1 | tee ../ci-logs/hvigor-build.log
+
+      - name: 收集产物
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          find harmony/entry/build -name "*.hap" -type f -exec cp -v {} out/ \;
+          ls -lh out
+          {
+            echo "### HAP 产物"
+            echo ""
+            echo "| 项 | 值 |"
+            echo "|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          for f in out/*.hap; do
+            size="$(stat -c%s "$f")"
+            sha="$(sha256sum "$f" | cut -d' ' -f1)"
+            echo "| 文件 | \`$(basename "$f")\` |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| 大小 | $size B |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| SHA-256 | \`$sha\` |" >> "$GITHUB_STEP_SUMMARY"
+          done
+          ( cd out && sha256sum *.hap ) > out/SHA256SUMS.txt
+          cat out/SHA256SUMS.txt
+
+      - name: 上传 HAP（保留 30 天）
+        uses: actions/upload-artifact@v4
+        with:
+          name: LXMusic-hap-api${{ env.SDK_API }}
+          path: |
+            out/*.hap
+            out/SHA256SUMS.txt
+          retention-days: 30
+          if-no-files-found: error
+
+      # 私有仓库的 Actions 日志外部看不到，失败时把日志尾部提交回当前分支便于排查
+      - name: 失败时回传日志
+        if: failure()
+        run: |
+          mkdir -p ci-logs
+          : > ci-logs/last-failure.log
+          for f in ci-logs/sdk.log ci-logs/hvigor.log ci-logs/hvigor-build.log; do
+            if [ -f "$f" ]; then
+              echo "===== $f =====" >> ci-logs/last-failure.log
+              tail -c 60000 "$f" >> ci-logs/last-failure.log
+            fi
+          done
+          if [ ! -s ci-logs/last-failure.log ]; then
+            echo "构建步骤未启动，失败发生在 setup 阶段（checkout / node / java）" > ci-logs/last-failure.log
+          fi
+          git config user.name 'ci-bot'
+          git config user.email 'ci-bot@users.noreply.github.com'
+          git add ci-logs/last-failure.log
+          git commit -m "ci(hap): 记录失败日志 [skip ci]" || exit 0
+          git push origin "HEAD:${{ github.head_ref || github.ref_name }}" || echo "日志回传失败"
+
+      # 成品固定挂在 Release tag hap-latest，下载地址永远不变；同名资产直接替换
+      - name: 发布到 Release（hap-latest）
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          hap="$(ls out/*.hap | head -n 1)"
+          name="$(basename "$hap")"
+          size="$(stat -c%s "$hap")"
+          sha="$(sha256sum "$hap" | cut -d' ' -f1)"
+          short="$(git rev-parse --short HEAD)"
+          notes="$(printf '由 GitHub Actions 自动构建，**未签名**（装机前需自行签名）。\n\n| 项 | 值 |\n|---|---|\n| 文件 | %s |\n| 大小 | %s B |\n| SHA-256 | %s |\n| 源码提交 | %s |\n| 页面 | 内嵌 app/standalone.html（与 APK 同一份界面） |\n' "$name" "$size" "$sha" "$short")"
+          if gh release view hap-latest >/dev/null 2>&1; then
+            gh release edit hap-latest --title "LX Music 鸿蒙版 · 最新 HAP（自动构建）" --notes "$notes"
+          else
+            gh release create hap-latest --title "LX Music 鸿蒙版 · 最新 HAP（自动构建）" --notes "$notes"
+          fi
+          gh release upload hap-latest "$hap" "out/SHA256SUMS.txt" --clobber
+          echo "已发布：$(gh release view hap-latest --json url -q .url)"

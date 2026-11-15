@@ -1,14 +1,18 @@
-# LX Music 界面复现版（Android）
+# LX Music 界面复现版（Android + HarmonyOS）
 
-按洛雪音乐（LX Music）移动端 v1.9.2 的界面与交互复刻的安卓客户端：**WebView 渲染界面 + Java 原生桥**，音源由用户自行导入的自定义 JS 音源提供，APK 内不内置任何音源与曲库。
+按洛雪音乐（LX Music）移动端 v1.9.2 的界面与交互复刻的客户端：**WebView / ArkWeb 渲染界面 + 原生壳**，音源由用户自行导入的自定义 JS 音源提供，安装包内不内置任何音源与曲库。
+
+- `app/` 是一份共用界面，Android 打成 APK，HarmonyOS 打成 HAP（ArkWeb 加载同一份 `standalone.html`）
+- 源码提交后由 GitHub Actions 自动构建两个版本并发布到 Releases
 
 > 仅个人学习与界面研究用；不随包分发音频内容，音源脚本由使用者自行准备，请遵守各音乐平台的授权条款。
 
 ## 当前状态
 
-- 版本：**3.13.7**（versionCode 24），产物 `LXMusic-v3.13.7.apk`（160,284 B）
-- 包名：`com.lxmusic.replica`；minSdk 23 / targetSdk 34
+- Android：版本 **3.13.7**（versionCode 24），产物 `LXMusic-v3.13.7.apk`（160,284 B），包名 `com.lxmusic.replica`，minSdk 23 / targetSdk 34
+- HarmonyOS：同一版本号，HAP 由 OpenHarmony 5.0.3-Release SDK（API 15）构建，**未签名**
 - 模拟器回归全绿：逻辑冒烟 463/463、设备验收 85/85、平台 35/35、播放器 41/41、队列 22/22、点行播放 25/25 + 重启 4/4
+
 
 ## 目录结构
 
@@ -27,6 +31,10 @@ app/                 界面与逻辑（纯前端，可直接在浏览器打开 s
 android/             Java 壳 + 原生桥（EchoBridge）
   src/com/lxmusic/replica/MainActivity.java
   build.py          aapt2/d8/apksigner 一把构建，产出根目录 APK
+harmony/             HarmonyOS 壳（ArkTS + ArkWeb，hvigor 工程）
+  AppScope/app.json5            包名 / 版本号
+  entry/src/main/ets/pages/Index.ets   Web 容器，加载 rawfile/index.html
+  entry/src/main/module.json5     权限（INTERNET / GET_NETWORK_INFO）
 docs/               构建说明、界面还原规格
 evidence/           验收脚本（smoke / device-check / device-platform / device-player /
                     device-queue / device-dlplay / device-settings）与报告 JSON
@@ -59,8 +67,17 @@ APK 输出到仓库根目录，版本号在 `android/build.py` 的 `VERSION_NAME
 
 ## 自动构建（GitHub Actions）
 
-`.github/workflows/build-apk.yml`：推送到 `main`、开 PR、打 `v*` tag 或手动
-`workflow_dispatch` 都会在 `ubuntu-latest` 上跑
+两个工作流并行跑，产物各自发布：
+
+| 工作流 | 产物 | Release |
+|---|---|---|
+| `build-apk.yml` | `LXMusic-v<版本>.apk`（已签名） | `v<版本>`（覆盖同名资产，标记 latest） |
+| `build-hap.yml` | `entry-default-unsigned.hap`（未签名） | `hap-latest`（固定地址，覆盖同名资产） |
+
+两者都在 `ubuntu-latest` 上跑，`main` push / PR / 手动 dispatch 触发；PR 只校验不发布。
+失败时会把日志尾部提交回当前分支的 `ci-logs/last-failure.log`（私有仓库的 Actions 日志外部读不到）。
+
+### APK 流水线
 
 ```
 setup JDK21 + 自装 cmdline-tools（platform 34 / build-tools 35.0.0）
@@ -75,6 +92,38 @@ setup JDK21 + 自装 cmdline-tools（platform 34 / build-tools 35.0.0）
 （版本取自 `LXMusic-v3.13.7.apk` 的名字，即 `v3.13.7`），同一个版本重复构建是
 覆盖资产（`gh release upload --clobber`）并标记为 latest，不会堆出多个 Release。
 发新版时先把 `android/build.py` 和 `AndroidManifest.xml` 的版本号改掉，再 push（或打 tag）。
+
+### HAP 流水线
+
+```
+下载 OpenHarmony 5.0.3-Release 公共 SDK（repo.huaweicloud.com，约 4.3 GB，走 cache）
+→ 从 v2raym-hos 的 Release 拉 hvigor 5.19.8 两个自包含 tarball（华为源在境外不稳）
+→ build-standalone.js → 拷 app/standalone.html 到 harmony/entry/src/main/resources/rawfile/index.html
+→ hvigor assembleHap（module=entry@default, product=default）
+→ 上传 artifact「LXMusic-hap-api15」→ 非 PR 事件时发布到 Release `hap-latest`
+```
+
+本地复现 HAP 构建（需自行准备 OpenHarmony SDK 与 hvigor）：
+
+```powershell
+node evidence/build-standalone.js
+Copy-Item app\standalone.html harmony\entry\src\main\resources\rawfile\index.html -Force
+$env:OHOS_SDK_HOME = "D:\ohos-sdk"          # 内含 15\{ets,js,native,previewer,toolchains}
+Push-Location harmony
+node node_modules\@ohos\hvigor\bin\hvigor.js --mode module `
+  -p module=entry@default -p product=default assembleHap --no-daemon
+Pop-Location
+# 产物：harmony\entry\build\default\outputs\default\entry-default-unsigned.hap
+```
+
+**HAP 现状与限制**：
+
+- CI 只出**未签名** HAP，装机前要自己签（和 v2raym-hos 一样，签名证书涉及华为账号，不进 CI）。
+- 鸿蒙壳目前只有 ArkWeb 容器 + INTERNET 权限，**没有移植 Android 的 EchoBridge**：
+  界面、歌单、榜单、设置都能渲染，导音源走 `<input type="file">` 浏览器回退；
+  下载/落盘、音效接管、原生文件选择这些依赖桥的能力在鸿蒙侧尚未实现。
+  后续要补的是 ArkTS 侧 `EchoBridge` 同名对象（http / 文件 / 下载），共用同一份 app.js。
+
 
 **签名说明**：CI 每次跑都是全新容器，默认会在临时目录新生成一个 keystore，
 因此 CI 出的包签名与本地 `%TEMP%\lx-replica-keystore` 的包不同，直接覆盖安装会失败

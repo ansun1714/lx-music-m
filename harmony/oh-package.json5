@@ -1,0 +1,10 @@
+{
+  "modelVersion": "5.0.0",
+  "name": "lx-music-m-harmony",
+  "version": "1.0.0",
+  "description": "LX Music 界面复现版 for HarmonyOS",
+  "dependencies": {
+  },
+  "devDependencies": {
+  }
+}

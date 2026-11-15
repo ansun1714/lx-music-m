@@ -18,3 +18,13 @@ evidence/fixtures/星海音乐源*.js
 .workbuddy/
 node_modules/
 *.log
+
+# ---------------------------------------------------------------- 鸿蒙工程
+harmony/node_modules/
+harmony/entry/build/
+harmony/.hvigor/
+harmony/oh-package-lock.json5
+harmony/entry/src/main/resources/rawfile/index.html
+.hvigor-pkgs/
+.hap
+*.hap

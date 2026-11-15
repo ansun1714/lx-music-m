@@ -1,0 +1,10 @@
+{
+  "name": "entry",
+  "version": "1.0.0",
+  "description": "LX Music 界面复现版 entry 模块",
+  "main": "",
+  "author": "",
+  "license": "",
+  "dependencies": {
+  }
+}

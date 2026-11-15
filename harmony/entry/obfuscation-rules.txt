@@ -1,0 +1,1 @@
+# 发布构建不做混淆，规则文件留空即可（entry/build-profile.json5 的 release 段引用了它）
