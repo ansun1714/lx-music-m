@@ -90,6 +90,8 @@ export class EchoBridge {
   private autoExport: boolean = true;
   /** 用户选定的导出目录 URI（通过「选择文件夹」拿到并持久化授权）；非空时下载完成直接写入，不再弹框 */
   private saveDirUri: string = '';
+  /** 保存目录是否已从 preferences 回推给 JS（防止每次 onPageEnd 重复回推） */
+  private dirRestored: boolean = false;
 
   init(ctx: common.UIAbilityContext, web: webview.WebviewController): void {
     this.ctx = ctx;
@@ -531,14 +533,10 @@ export class EchoBridge {
       }
       this.runJs('window.LXDownloadBridge&&LXDownloadBridge.onDone(' + this.jsJson(key) + ',' +
         this.jsJson(job.destPath) + ',' + job.received + ')');
-      if (this.autoExport) {
-        // 设置里开了「完成后自动保存到设备」：已选文件夹则零弹框写入，否则拉起系统保存框
+      if (this.autoExport && this.saveDirUri.length > 0) {
+        // 已设置保存文件夹：静默写入，不弹任何框
         const name: string = job.destPath.substring(job.destPath.lastIndexOf('/') + 1);
-        if (this.saveDirUri.length > 0) {
-          this.saveToDir(job.destPath, this.safeName(name));
-        } else {
-          this.saveSandboxToUserFile(job.destPath, this.safeName(name), '');
-        }
+        this.saveToDir(job.destPath, this.safeName(name));
       }
     });
   }
@@ -707,8 +705,12 @@ export class EchoBridge {
     this.runJs('window.LXSaveDir&&window.LXSaveDir.onDir(' + this.jsJson(uri) + ')');
   }
 
-  /** JS 就绪后由页面调用：把上次选定的保存文件夹回推给前端 */
+  /** JS 就绪后由页面调用：把上次选定的保存文件夹回推给前端（只做一次，避免页面反复刷新） */
   restoreExportDir(): void {
+    if (this.dirRestored) {
+      return;
+    }
+    this.dirRestored = true;
     this.loadSaveDir();
   }
 
@@ -757,15 +759,23 @@ export class EchoBridge {
    * 直接写入已选目录（零弹框）。失败时回退到系统保存框，保证用户总能拿到文件。
    */
   private saveToDir(srcPath: string, name: string): void {
-    const target: string = this.saveDirUri + '/' + name;
+    // docs:// 目录 URI 里的文件名需要按 URI 约定编码，否则中文文件名会打不开目标文件
+    let safe: string = name;
+    try {
+      safe = encodeURIComponent(name);
+    } catch (e) {
+      safe = name;
+    }
+    const target: string = this.saveDirUri + '/' + safe;
     hilog.info(DOMAIN, TAG, 'export to dir: %{public}s', target);
     taskpool.execute(copyFileToUri, srcPath, target).then((res: Object) => {
       hilog.info(DOMAIN, TAG, 'export to dir ok bytes=%{public}s', String(res));
-      this.toast('已保存到所选文件夹');
+      this.toast('已自动保存到所选文件夹');
     }).catch((err: BusinessError) => {
-      hilog.warn(DOMAIN, TAG, 'export to dir failed: %{public}s', err.message);
-      this.toast('所选文件夹无权限写入，改用系统保存框');
-      this.saveSandboxToUserFile(srcPath, name, '');
+      hilog.warn(DOMAIN, TAG, 'export to dir failed: %{public}s',
+        err !== null && err !== undefined && err.message !== undefined ? err.message : String(err));
+      // 目录授权失效时不弹框、不清空设置，交由用户手动导出
+      this.toast('写入所选文件夹失败，可在下载页点「保存到文件」导出');
     });
   }
 
