@@ -136,8 +136,7 @@ jobs:
         run: |
           set -euo pipefail
           node evidence/build-standalone.js
-          mkdir -p harmony/entry/src/main/resources/rawfile
-          cp app/standalone.html harmony/entry/src/main/resources/rawfile/index.html
+          node evidence/inject-bridge-patch.js app/standalone.html android/bridge-patch.js harmony/entry/src/main/resources/rawfile/index.html
           ls -l harmony/entry/src/main/resources/rawfile/index.html
 
       - name: 构建 HAP
@@ -157,7 +156,7 @@ jobs:
               assembleHap --no-daemon
             echo "== 产物 =="
             find entry/build -name "*.hap" -type f -exec ls -lh {} \;
-          } 2>&1 | tee ../ci-logs/hvigor-build.log
+          } 2>&1 | tee ci-logs/hvigor-build.log
 
       - name: 收集产物
         run: |
@@ -208,7 +207,7 @@ jobs:
           fi
           git config user.name 'ci-bot'
           git config user.email 'ci-bot@users.noreply.github.com'
-          git add ci-logs/last-failure.log
+          git add -f ci-logs/last-failure.log
           git commit -m "ci(hap): 记录失败日志 [skip ci]" || exit 0
           git push origin "HEAD:${{ github.head_ref || github.ref_name }}" || echo "日志回传失败"
 
