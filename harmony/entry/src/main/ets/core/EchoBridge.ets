@@ -16,7 +16,7 @@
  *   2. mediaProxyBase() 返回空串：不启用应用内 HTTPS 代理，音效改走 httpRequest 取字节 → Blob。
  */
 import { common } from '@kit.AbilityKit';
-import { util } from '@kit.ArkTS';
+import { util, taskpool } from '@kit.ArkTS';
 import { http } from '@kit.NetworkKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { picker } from '@kit.CoreFileKit';
@@ -35,6 +35,34 @@ const LIMIT_TEXT: number = 8 * 1024 * 1024;
 const CHUNK_BYTES: number = 120000;
 /** 下载进度回调节流 */
 const PROGRESS_MS: number = 250;
+
+/**
+ * 把沙箱文件复制到 picker 返回的目标 URI。
+ * 必须在 taskpool 子线程执行：几十到几百 MB 的同步读写放在主线程会触发
+ * THREAD_BLOCK_6S，直接被系统强杀（真机实测）。
+ */
+@Concurrent
+function copyFileToUri(srcPath: string, dstUri: string): number {
+  const src: fs.File = fs.openSync(srcPath, fs.OpenMode.READ_ONLY);
+  const dst: fs.File = fs.openSync(dstUri, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+  const step: number = 262144;
+  const buf: ArrayBuffer = new ArrayBuffer(step);
+  let total: number = 0;
+  try {
+    while (true) {
+      const n: number = fs.readSync(src.fd, buf, { offset: 0, length: step });
+      if (n <= 0) {
+        break;
+      }
+      fs.writeSync(dst.fd, buf.slice(0, n));
+      total += n;
+    }
+  } finally {
+    fs.closeSync(src.fd);
+    fs.closeSync(dst.fd);
+  }
+  return total;
+}
 
 interface DownloadJob {
   partPath: string;
@@ -578,34 +606,21 @@ export class EchoBridge {
     }
     const opt: picker.DocumentSaveOptions = new picker.DocumentSaveOptions();
     opt.newFileNames = [name];
+    hilog.info(DOMAIN, TAG, 'export picker open: %{public}s', name);
     const vp: picker.DocumentViewPicker = new picker.DocumentViewPicker(this.ctx);
     vp.save(opt).then((uris: string[]) => {
       if (uris === null || uris === undefined || uris.length === 0) {
         return;
       }
       const uri: string = uris[0];
-      try {
-        const src: fs.File = fs.openSync(srcPath, fs.OpenMode.READ_ONLY);
-        const dst: fs.File = fs.openSync(uri, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
-        const step: number = 262144;
-        let buf: ArrayBuffer = new ArrayBuffer(step);
-        while (true) {
-          const n: number = fs.readSync(src.fd, buf, { offset: 0, length: step });
-          if (n <= 0) {
-            break;
-          }
-          fs.writeSync(dst.fd, buf.slice(0, n));
-        }
-        fs.closeSync(src.fd);
-        fs.closeSync(dst.fd);
-        hilog.info(DOMAIN, TAG, 'export ok: %{public}s', uri);
+      taskpool.execute(copyFileToUri, srcPath, uri).then((res: Object) => {
+        hilog.info(DOMAIN, TAG, 'export ok: %{public}s bytes=%{public}s', uri, String(res));
         this.toast('已保存到文件管理器');
-      } catch (e) {
-        const err = e as BusinessError;
+      }).catch((err: BusinessError) => {
         hilog.error(DOMAIN, TAG, 'export write failed: %{public}s',
-          err !== null && err !== undefined && err.message !== undefined ? err.message : String(e));
+          err !== null && err !== undefined && err.message !== undefined ? err.message : String(err));
         this.toast('保存失败');
-      }
+      });
     }).catch((err: BusinessError) => {
       hilog.error(DOMAIN, TAG, 'export cancelled: %{public}s',
         err !== null && err !== undefined && err.message !== undefined ? err.message : '');
