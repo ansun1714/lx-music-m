@@ -1,0 +1,213 @@
+{
+  "ranAt": "2026-11-15T11:28:57.424Z",
+  "passed": 41,
+  "total": 41,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "LXSound 已挂载",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "LXLyr 已挂载",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "10 段均衡器频段正确",
+      "ok": true,
+      "detail": "31,62,125,250,500,1000,2000,4000,8000,16000"
+    },
+    {
+      "name": "9 个官方预设",
+      "ok": true,
+      "detail": "9"
+    },
+    {
+      "name": "测试音源导入成功",
+      "ok": true,
+      "detail": "ok:设备测试音源"
+    },
+    {
+      "name": "搜索有结果",
+      "ok": true,
+      "detail": "kw_668907528"
+    },
+    {
+      "name": "音频元素已加载到可播状态",
+      "ok": true,
+      "detail": "4/8"
+    },
+    {
+      "name": "音效关闭时走原生播放（不接 MediaElementSource）",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "详情页含歌词容器",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "详情页含下载按钮",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "详情页含音效按钮",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "详情页含歌词开关",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "音源歌词解析为 5 行",
+      "ok": true,
+      "detail": "5"
+    },
+    {
+      "name": "歌词首行内容正确",
+      "ok": true,
+      "detail": "设备测试歌词 · 第一行"
+    },
+    {
+      "name": "歌词行带跳转时间",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "歌词高亮跟随播放进度",
+      "ok": true,
+      "detail": "第三行 · 验证自动滚动"
+    },
+    {
+      "name": "弹出品质菜单",
+      "ok": true,
+      "detail": "<div class=\"ctx-head\"><b>下载 · 夜(纯享版)</b><span>铃木川 · 选择下载品质</"
+    },
+    {
+      "name": "品质菜单含母带",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "品质菜单 9 档",
+      "ok": true,
+      "detail": "9"
+    },
+    {
+      "name": "音效页已打开",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "音效页有 9 个预设",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "音效页有 10 段 EQ",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "音效页有混响与环绕",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "开启音效后接入 Web Audio",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "接管后 AudioContext 运行中",
+      "ok": true,
+      "detail": "running"
+    },
+    {
+      "name": "切换音效后仍在播放",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "套用摇滚预设",
+      "ok": true,
+      "detail": "7,6,2,1,-3,-4,2,1,4,5"
+    },
+    {
+      "name": "音效自动开启",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "预设按钮高亮",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "EQ 滑块实时写入",
+      "ok": true,
+      "detail": "6"
+    },
+    {
+      "name": "滑块数值标签同步",
+      "ok": true,
+      "detail": "+6"
+    },
+    {
+      "name": "手动调 EQ 后预设变自定义",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "混响切到大厅",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "3D 环绕已开启",
+      "ok": true,
+      "detail": "自定义 · 大厅 · 环绕"
+    },
+    {
+      "name": "关闭音效后回退原生播放",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "关闭音效后保留 EQ 与混响配置",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "关闭后描述为已关闭",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "下载页音质下拉含母带",
+      "ok": true,
+      "detail": "master,atmos_plus,atmos,hires,flac24bit,flac,320k,192k,128k"
+    },
+    {
+      "name": "下拉共 9 档",
+      "ok": true,
+      "detail": "9"
+    },
+    {
+      "name": "手动选中母带",
+      "ok": true,
+      "detail": "master"
+    },
+    {
+      "name": "任务按母带入队（不被预先降档）",
+      "ok": true,
+      "detail": "master"
+    }
+  ]
+}

@@ -1,0 +1,146 @@
+{
+  "green": {
+    "id": "green",
+    "name": "绿意盎然",
+    "isDark": false,
+    "primary": "rgb(77, 175, 124)",
+    "mainBg": "rgba(255, 255, 255, 1)",
+    "appBg": "var(c-primary-light-600-alpha-700)",
+    "bgImage": ""
+  },
+  "blue": {
+    "id": "blue",
+    "name": "蓝田生玉",
+    "isDark": false,
+    "primary": "rgb(52, 152, 219)",
+    "mainBg": "rgba(255, 255, 255, 1)",
+    "appBg": "var(c-primary-light-600-alpha-700)",
+    "bgImage": ""
+  },
+  "blue_plus": {
+    "id": "blue_plus",
+    "name": "蛋雅深蓝",
+    "isDark": false,
+    "primary": "rgb(77, 131, 175)",
+    "mainBg": "rgba(255, 255, 255, 1)",
+    "appBg": "var(c-primary-light-600-alpha-600)",
+    "bgImage": ""
+  },
+  "orange": {
+    "id": "orange",
+    "name": "橙黄橘绿",
+    "isDark": false,
+    "primary": "rgb(245, 171, 53)",
+    "mainBg": "rgba(255, 255, 255, 1)",
+    "appBg": "var(c-primary-light-600-alpha-700)",
+    "bgImage": ""
+  },
+  "brown": {
+    "id": "brown",
+    "name": "泥牛入海",
+    "isDark": false,
+    "primary": "rgba(188, 128, 68, 1)",
+    "mainBg": "rgba(255, 255, 255, 1)",
+    "appBg": "var(c-primary-light-600-alpha-700)",
+    "bgImage": ""
+  },
+  "red": {
+    "id": "red",
+    "name": "热情似火",
+    "isDark": false,
+    "primary": "rgb(214, 69, 65)",
+    "mainBg": "rgba(255, 255, 255, 1)",
+    "appBg": "var(c-primary-light-600-alpha-700)",
+    "bgImage": ""
+  },
+  "pink": {
+    "id": "pink",
+    "name": "粉装玉琢",
+    "isDark": false,
+    "primary": "rgb(241, 130, 141)",
+    "mainBg": "rgba(255, 255, 255, 1)",
+    "appBg": "var(c-primary-light-600-alpha-700)",
+    "bgImage": ""
+  },
+  "purple": {
+    "id": "purple",
+    "name": "重斤球紫",
+    "isDark": false,
+    "primary": "rgb(155, 89, 182)",
+    "mainBg": "rgba(255, 255, 255, 1)",
+    "appBg": "var(c-primary-light-600-alpha-700)",
+    "bgImage": ""
+  },
+  "grey": {
+    "id": "grey",
+    "name": "灰常美丽",
+    "isDark": false,
+    "primary": "rgb(108, 122, 137)",
+    "mainBg": "rgba(255, 255, 255, 1)",
+    "appBg": "var(c-primary-light-600-alpha-700)",
+    "bgImage": ""
+  },
+  "ming": {
+    "id": "ming",
+    "name": "青出于黑",
+    "isDark": false,
+    "primary": "rgb(51, 110, 123)",
+    "mainBg": "rgba(255, 255, 255, 1)",
+    "appBg": "var(c-primary-light-600-alpha-700)",
+    "bgImage": ""
+  },
+  "blue2": {
+    "id": "blue2",
+    "name": "清热板蓝",
+    "isDark": false,
+    "primary": "rgb(79, 98, 208)",
+    "mainBg": "rgba(255, 255, 255, 1)",
+    "appBg": "var(c-primary-light-600-alpha-700)",
+    "bgImage": ""
+  },
+  "black": {
+    "id": "black",
+    "name": "黑灯瞎火",
+    "isDark": true,
+    "primary": "rgb(190, 190, 190)",
+    "mainBg": "rgba(19, 19, 19, 0.95)",
+    "appBg": "rgba(0, 0, 0, 0)",
+    "bgImage": "landingMoon.png"
+  },
+  "mid_autumn": {
+    "id": "mid_autumn",
+    "name": "月里嫦娥",
+    "isDark": false,
+    "primary": "rgb(74, 55, 82)",
+    "mainBg": "rgba(255, 255, 255, 0.9)",
+    "appBg": "rgba(255, 255, 255, 0)",
+    "bgImage": "jqbg.jpg"
+  },
+  "naruto": {
+    "id": "naruto",
+    "name": "木叶之村",
+    "isDark": false,
+    "primary": "rgb(87, 144, 167)",
+    "mainBg": "rgba(255, 255, 255, 0.8)",
+    "appBg": "rgba(255, 255, 255, 0.15)",
+    "bgImage": "myzcbg.jpg"
+  },
+  "china_ink": {
+    "id": "china_ink",
+    "name": "近墨者黑",
+    "isDark": false,
+    "primary": "rgba(47, 47, 47, 1)",
+    "mainBg": "rgba(255, 255, 255, 0.8)",
+    "appBg": "rgba(255, 255, 255, 0)",
+    "bgImage": "china_ink.jpg"
+  },
+  "happy_new_year": {
+    "id": "happy_new_year",
+    "name": "新年快乐",
+    "isDark": false,
+    "primary": "rgb(192, 57, 43)",
+    "mainBg": "rgba(255, 255, 255, 0.8)",
+    "appBg": "rgba(255, 255, 255, 0.15)",
+    "bgImage": "xnkl.png"
+  }
+}

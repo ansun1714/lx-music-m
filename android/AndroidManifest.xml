@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.lxmusic.replica"
+    android:versionCode="24"
+    android:versionName="3.13.7">
+
+    <uses-sdk android:minSdkVersion="23" android:targetSdkVersion="34" />
+
+    <!-- v3.1.0 起新增自定义音源：JS 脚本可经原生 HTTP 桥访问自己的接口，
+         并在线收听 / 按来源格式下载，因此需要 INTERNET。
+         仍不申请存储权限：文件通过 MediaStore.Downloads（API 29+）或应用专属目录写入。
+         usesCleartextTraffic 允许音源使用 HTTP 接口（与 WebView mixed content 策略配套）。 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:label="@string/app_name"
+        android:icon="@drawable/ic_launcher"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar"
+        android:allowBackup="true"
+        android:usesCleartextTraffic="true"
+        android:supportsRtl="false">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode|density"
+            android:windowSoftInputMode="adjustResize"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- WebView 渲染进程是独立 UID：exported=false 会让它读不到 <input type=file>
+             回传的 content:// URI（表现为选完文件没反应）。内容仅为本次选择暂存的内存字节。 -->
+        <provider
+            android:name=".PickedProvider"
+            android:authorities="com.lxmusic.replica.picked"
+            android:exported="true"
+            android:grantUriPermissions="true" />
+    </application>
+</manifest>

@@ -1,0 +1,75 @@
+{
+  "steps": [
+    {
+      "name": "LXFilePick 已挂载",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "EchoBridge.pickScript 可用",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "自定义源管理页已打开",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "点击后进入等待态（取消/失败有反馈）",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "选中文件后音源数量 +1",
+      "ok": true,
+      "detail": "{\"before\":1,\"after\":2,\"active\":false,\"names\":[\"示例音源 · 本地曲库\",\"真机导入测试音源\"],\"origins\":[\"builtin\",\"local:真机导入测试.js\"],\"toasts\":[]}"
+    },
+    {
+      "name": "导入的音源名为「真机导入测试音源」",
+      "ok": true,
+      "detail": "[\"示例音源 · 本地曲库\",\"真机导入测试音源\"]"
+    },
+    {
+      "name": "origin 记录真实文件名",
+      "ok": true,
+      "detail": "[\"builtin\",\"local:真机导入测试.js\"]"
+    },
+    {
+      "name": "等待态已结束",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "已向 Java 确认消费",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "导入的音源可用于搜索",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "已持久化到 localStorage",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "ok": true,
+  "elapsedMs": 67600,
+  "probe": {
+    "before": 1,
+    "after": 2,
+    "active": false,
+    "names": [
+      "示例音源 · 本地曲库",
+      "真机导入测试音源"
+    ],
+    "origins": [
+      "builtin",
+      "local:真机导入测试.js"
+    ],
+    "toasts": []
+  }
+}

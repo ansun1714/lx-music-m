@@ -1,0 +1,433 @@
+{
+  "device": "https://app.echo.local/index.html",
+  "total": 85,
+  "passed": 85,
+  "failed": [],
+  "checks": [
+    {
+      "name": "页面标题 = LX Music",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "页面位于伪 HTTPS 安全源",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "EchoBridge 已注入",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "十三个脚本产物全部挂载",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "zh-cn 文案 520 条",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "16 套主题",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "抽屉 6 项导航",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "默认主题色 = rgb(77, 175, 124)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "图标字体已加载（document.fonts.check）",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "首屏为搜索页",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "内置演示曲库已清空",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "冷启动无任何音源",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "无 localStorage 跨域报错（可读）",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "点汉堡打开抽屉",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "抽屉头部为 LX Music",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "切到「下载」导航",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "下载页标题 = 下载",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "搜索页有平台选择条",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "平台 chip = 5 个",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "默认平台 = 酷我",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "未导入音源时提示不能播放",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "酷我内置接口返回真实结果",
+      "ok": true,
+      "detail": "30"
+    },
+    {
+      "name": "结果带酷我平台标记",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "结果为真实歌曲（含歌手）",
+      "ok": true,
+      "detail": "周杰伦"
+    },
+    {
+      "name": "没有音源提供地址时播放被拦下",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "设备端导入测试音源",
+      "ok": true,
+      "detail": "ok:设备测试音源"
+    },
+    {
+      "name": "音源自带 sources 声明，自动服务酷我",
+      "ok": true,
+      "detail": "api_mwhr019h_map4y"
+    },
+    {
+      "name": "平台账号验证通过",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "同一音源自动服务酷狗",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "点曲目行播放",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "PlayerBar 显示曲目名",
+      "ok": true,
+      "detail": "发如雪"
+    },
+    {
+      "name": "播放进度开始走动",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "打开播放详情页",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "下载入口先弹品质菜单",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "品质菜单含母带档",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "选择标准音质入队",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "任务 state=done",
+      "ok": true,
+      "detail": "done"
+    },
+    {
+      "name": "任务记录所选音质 128k",
+      "ok": true,
+      "detail": "128k"
+    },
+    {
+      "name": "按音源格式生成 WAV 文件",
+      "ok": true,
+      "detail": "96044/audio/wav"
+    },
+    {
+      "name": "离线播放 URL 已生成",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "已写入系统 Download/LX Music",
+      "ok": true,
+      "detail": "Download/LX Music/发如雪 - 周杰伦.wav"
+    },
+    {
+      "name": "页面显示落盘路径",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "统计卡片「已完成」与实际任务数一致（实时刷新）",
+      "ok": true,
+      "detail": "1"
+    },
+    {
+      "name": "统计卡片「已占用」显示实际体积",
+      "ok": true,
+      "detail": "94 KB"
+    },
+    {
+      "name": "模拟离线后已下载曲目用本地 WAV 播放",
+      "ok": true,
+      "detail": "local"
+    },
+    {
+      "name": "设置页 16 个主题色块",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "切换到「黑灯瞎火」主题",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "切回 green 主题",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "状态已持久化到 localStorage",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "下载索引已持久化",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "lx 兼容层 / 音源管理 / HTTP 桥全部挂载",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "原生 HTTP 桥已由 Java 注入",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "WebView 允许混合内容（音源可用 HTTP 音频）",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "设备测试音源初始化成功",
+      "ok": true,
+      "detail": "success"
+    },
+    {
+      "name": "音源声明了来源与动作",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "音源支持 search / downloadUrl / leaderboard",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "设置页含自定义源管理与音质选择",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "已去掉平台单独绑定入口",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "音源管理页标题用原版文案",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "管理页含本地/在线导入、粘贴脚本与安全提示",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "管理页显示音源状态与扩展动作",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "原生 HTTP 桥 Java→JS 回调可用",
+      "ok": true,
+      "detail": "ok:200"
+    },
+    {
+      "name": "平台搜索返回可展示的曲目",
+      "ok": true,
+      "detail": "夜(纯享版)"
+    },
+    {
+      "name": "曲目带平台标记",
+      "ok": true,
+      "detail": "kw"
+    },
+    {
+      "name": "酷我曲目已绑定账号（可解析地址）",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "搜索结果显示平台名称",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "自定义音源曲目走在线收听（stream）",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "在线音频地址来自音源 musicUrl",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "下载任务按音源格式完成",
+      "ok": true,
+      "detail": "WAV/audio/wav"
+    },
+    {
+      "name": "文件名按音源 ext 生成 .wav",
+      "ok": true,
+      "detail": "夜(纯享版) - 铃木川.wav"
+    },
+    {
+      "name": "按音源格式的文件写入 Download/LX Music",
+      "ok": true,
+      "detail": "Download/LX Music/夜(纯享版) - 铃木川.wav"
+    },
+    {
+      "name": "酷狗榜单返回曲目",
+      "ok": true,
+      "detail": "100"
+    },
+    {
+      "name": "榜单曲目带酷狗平台标记",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "排行榜页显示榜单卡片入口",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "切换榜单重新请求",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "点卡片进入榜单目录（浮层打开且有曲目）",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "榜单目录显示来源说明",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "榜单目录不盖住底部播放条",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "排行榜目录「播放全部」可播放音源曲目",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "目录页内播放时播放条显示当前歌曲",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "排行榜目录最后一行能弹出菜单",
+      "ok": true,
+      "detail": "7 项"
+    },
+    {
+      "name": "菜单整体在屏幕内（不再被裁掉）",
+      "ok": true,
+      "detail": "top 404 / bottom 711 / 屏高 803"
+    },
+    {
+      "name": "贴底时菜单向上翻（顶边在触点上方）",
+      "ok": true,
+      "detail": "top 404 vs 触点 720"
+    },
+    {
+      "name": "歌单目录最后一行能弹出菜单",
+      "ok": true,
+      "detail": "7 项"
+    },
+    {
+      "name": "歌单目录菜单整体在屏幕内",
+      "ok": true,
+      "detail": "top 404 / bottom 711 / 屏高 803"
+    }
+  ]
+}

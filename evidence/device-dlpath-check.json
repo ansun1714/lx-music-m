@@ -1,0 +1,26 @@
+{
+  "at": "2026-11-15T09:19:21.616Z",
+  "persist": true,
+  "results": [
+    {
+      "name": "重启后下载目录仍是上次选的（设置已落盘）",
+      "ok": true,
+      "extra": "Download/我的音乐"
+    },
+    {
+      "name": "下载队列启动时回填了该目录",
+      "ok": true,
+      "extra": "Download/我的音乐"
+    },
+    {
+      "name": "设置页仍显示自定义目录",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "行内展示的完整路径同步为自定义目录",
+      "ok": true,
+      "extra": "Download/我的音乐"
+    }
+  ]
+}

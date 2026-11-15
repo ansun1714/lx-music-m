@@ -1,0 +1,139 @@
+{
+  "ranAt": "2026-11-15T10:31:50.531Z",
+  "stage": "apply",
+  "passed": 26,
+  "total": 26,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "「播放速率」有滑块",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "「播放速率」有数字框",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "「歌词字体大小」有滑块+数字框",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "「界面字体大小」有滑块+数字框",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "「下载音质」下拉 9 档",
+      "ok": true,
+      "detail": "master,atmos_plus,atmos,hires,flac24bit,flac,320k,192k,128k"
+    },
+    {
+      "name": "点数字框后控件未被重建（旧版可输入前就被销毁）",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "点下拉后控件未被重建（旧版选不中任何一档）",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "设置值 = 1.5",
+      "ok": true,
+      "detail": "1.5"
+    },
+    {
+      "name": "引擎速率 = 1.5",
+      "ok": true,
+      "detail": "1.5"
+    },
+    {
+      "name": "空闲时记住倍率（有音频元素时同步下发）",
+      "ok": true,
+      "detail": "null"
+    },
+    {
+      "name": "滑块与数字框互相同步",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "反向也能调（0.8×）",
+      "ok": true,
+      "detail": "0.8"
+    },
+    {
+      "name": "--ui-fs = 1.214",
+      "ok": true,
+      "detail": "1.214"
+    },
+    {
+      "name": "文字实际变大（14→约 17px）",
+      "ok": true,
+      "detail": "14 → 16.996"
+    },
+    {
+      "name": "图标一起缩放（基准 18px → 约 21.85px）",
+      "ok": true,
+      "detail": "21.852"
+    },
+    {
+      "name": "也能调小（12 → 0.857 + 文字变小）",
+      "ok": true,
+      "detail": "0.857"
+    },
+    {
+      "name": "--lyric-size = 22px",
+      "ok": true,
+      "detail": "22px"
+    },
+    {
+      "name": "歌词正文实际 22px",
+      "ok": true,
+      "detail": "22"
+    },
+    {
+      "name": "翻译行按比例（18px 左右）",
+      "ok": true,
+      "detail": "18.04"
+    },
+    {
+      "name": "歌词也能调小到 14px",
+      "ok": true,
+      "detail": "14px"
+    },
+    {
+      "name": "下拉可切到「无损音质」",
+      "ok": true,
+      "detail": "flac"
+    },
+    {
+      "name": "同时写入设置",
+      "ok": true,
+      "detail": "flac"
+    },
+    {
+      "name": "切换后下拉仍显示所选档",
+      "ok": true,
+      "detail": "flac"
+    },
+    {
+      "name": "已落盘 localStorage",
+      "ok": true,
+      "detail": "flac"
+    },
+    {
+      "name": "下载页的音质下拉同步为无损",
+      "ok": true,
+      "detail": "flac"
+    },
+    {
+      "name": "四项设置全部落盘（重启前确认）",
+      "ok": true,
+      "detail": "{\"drawerPosition\":\"left\",\"showBackBtn\":true,\"showExitBtn\":true,\"homePageScroll\":true,\"autoHidePlayBar\":false,\"statusBarPadding\":true,\"isAutoTheme\":false,\"showAlbumName\":true,\"showInterval\":true,\"fontSize\":17,\"savePlayTime\":true,\"autoCleanPlayedList\":false,\"lyricFontSize\":22,\"lyricAlign\":\"center\",\"showTranslation\":true,\"showRoma\":true,\"s2t\":false,\"desktopLyric\":false,\"fontShadow\":false,\"playbackRate\":1.5,\"offline\":false,\"audioQuality\":\"320k\",\"logUserApi\":false,\"downloadQuality\":\"flac\",\"dlParallel\":2,\"dlAuto\":true,\"downloadDir\":\"Download/LX Music\",\"showLyric\":true}"
+    }
+  ]
+}

@@ -1,0 +1,119 @@
+{
+  "ranAt": "2026-11-15T11:26:09.026Z",
+  "queueLength": 100,
+  "passed": 22,
+  "total": 22,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "测试音源导入成功",
+      "ok": true,
+      "detail": "导入成功 🎉"
+    },
+    {
+      "name": "酷我已可用音源服务",
+      "ok": true,
+      "detail": "api_mwhr0uj7_56fkz"
+    },
+    {
+      "name": "歌单页出现推荐歌单卡片",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "歌单详情加载出曲目列表",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "「全部播放」把整张歌单灌进播放队列",
+      "ok": true,
+      "detail": "队列 100 首 "
+    },
+    {
+      "name": "播放队列已建立（>1 首）",
+      "ok": true,
+      "detail": "100"
+    },
+    {
+      "name": "详情页有队列信息条",
+      "ok": true,
+      "detail": "下一首 | 唐人恋曲 · 小唐人 | 队列 | 第 1 / 100 首 · 还剩 99 首 · 列表循环"
+    },
+    {
+      "name": "显示「下一首」",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "「下一首」是队列第二首",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "显示第几首 / 共几首 / 还剩几首",
+      "ok": true,
+      "detail": "第 1 / 100 首 · 还剩 99 首"
+    },
+    {
+      "name": "标注当前播放模式",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "详情页有「列表」按钮",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "切到下一首后索引前进",
+      "ok": true,
+      "detail": "1"
+    },
+    {
+      "name": "信息条同步为第二首 / 剩余递减",
+      "ok": true,
+      "detail": "第 2 / 100 首 · 还剩 98 首"
+    },
+    {
+      "name": "队列页列出全部曲目",
+      "ok": true,
+      "detail": "100/100"
+    },
+    {
+      "name": "当前曲目在队列页高亮",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "队列页显示总首数与当前位置",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "点选队列任意一首即切过去",
+      "ok": true,
+      "detail": "4"
+    },
+    {
+      "name": "切歌后详情页同步新的位置",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "模式按钮可切到随机播放",
+      "ok": true,
+      "detail": "random"
+    },
+    {
+      "name": "信息条提示随机抽取",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "随机点 6 次都没有停在原曲",
+      "ok": true,
+      "detail": "same=0"
+    }
+  ]
+}

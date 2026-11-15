@@ -1,0 +1,220 @@
+{
+  "ranAt": "2026-11-15T02:49:27.423Z",
+  "passed": 42,
+  "total": 42,
+  "failed": 0,
+  "wyCount": 20,
+  "txCount": 30,
+  "checks": [
+    {
+      "name": "LXNetCrypto 已挂载",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "SHA1 在设备上执行正确",
+      "ok": true,
+      "detail": "a9993e364706816aba3e25717850c26c9cd0d89d"
+    },
+    {
+      "name": "AES-128-ECB 在设备上执行正确",
+      "ok": true,
+      "detail": "3329CABA8FB561FF0086A5823D14F529"
+    },
+    {
+      "name": "zzcSign 在设备上执行正确",
+      "ok": true,
+      "detail": "zzc7746109xq501htmv4ipz7c8owlxfpihjm1fd695c7"
+    },
+    {
+      "name": "网易已具备内置搜索",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "QQ 已具备内置搜索",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "音源导入成功",
+      "ok": true,
+      "detail": "导入成功 🎉"
+    },
+    {
+      "name": "识别为星海音乐源",
+      "ok": true,
+      "detail": "星海音乐源"
+    },
+    {
+      "name": "脚本声明了网易来源",
+      "ok": true,
+      "detail": "wy,tx,kg,kw,mg,qs"
+    },
+    {
+      "name": "脚本声明了 QQ 来源",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "脚本初始化成功",
+      "ok": true,
+      "detail": "success"
+    },
+    {
+      "name": "平台账号：网易由该音源提供地址",
+      "ok": true,
+      "detail": "api_mwh8jcqr_o79zg"
+    },
+    {
+      "name": "平台账号：QQ 由该音源提供地址",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "网易验证通过",
+      "ok": true,
+      "detail": "验证通过"
+    },
+    {
+      "name": "网易返回真实结果",
+      "ok": true,
+      "detail": "20"
+    },
+    {
+      "name": "结果全部标记为网易平台",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "来源说明含「网易」",
+      "ok": true,
+      "detail": "20 首 · 来自网易云音乐内置接口"
+    },
+    {
+      "name": "曲目含 songmid",
+      "ok": true,
+      "detail": "509781655"
+    },
+    {
+      "name": "曲目含歌手",
+      "ok": true,
+      "detail": "周杰伦、李硕、张鑫"
+    },
+    {
+      "name": "曲目含 interval",
+      "ok": true,
+      "detail": "03:59"
+    },
+    {
+      "name": "曲目带音源可用的 _raw 字段",
+      "ok": true,
+      "detail": "509781655"
+    },
+    {
+      "name": "曲目声明了音质",
+      "ok": true,
+      "detail": "128k,320k,flac"
+    },
+    {
+      "name": "网易曲目进入在线收听（stream）",
+      "ok": true,
+      "detail": "stream"
+    },
+    {
+      "name": "播放状态为 true",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "播放条显示当前曲目",
+      "ok": true,
+      "detail": "想你就写信 (Live)"
+    },
+    {
+      "name": "QQ 返回真实结果",
+      "ok": true,
+      "detail": "30"
+    },
+    {
+      "name": "结果全部标记为 QQ 平台",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "来源说明含「QQ」",
+      "ok": true,
+      "detail": "30 首 · 来自QQ音乐内置接口"
+    },
+    {
+      "name": "QQ 曲目 songmid = mid",
+      "ok": true,
+      "detail": "0027oMO61wWi55"
+    },
+    {
+      "name": "QQ 曲目带 media_mid",
+      "ok": true,
+      "detail": "002A6j2q1tdUUP"
+    },
+    {
+      "name": "QQ 曲目含歌手与专辑",
+      "ok": true,
+      "detail": "周杰伦 / 十一月的萧邦"
+    },
+    {
+      "name": "QQ 曲目声明了音质",
+      "ok": true,
+      "detail": "128k,320k,flac,atmos,master"
+    },
+    {
+      "name": "QQ 播放失败时透传音源原因",
+      "ok": true,
+      "detail": "后端失败: 触发人机验证 | toast: 没有解析到播放地址：后端失败: 触发人机验证"
+    },
+    {
+      "name": "QQ 播放失败不进入假播放状态",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "网易曲目入队成功",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "下载任务完成",
+      "ok": true,
+      "detail": "done / "
+    },
+    {
+      "name": "文件已保存到系统下载目录",
+      "ok": true,
+      "detail": "Download/LX Music/想你就写信 (Live) - 周杰伦、李硕、张鑫.mp3"
+    },
+    {
+      "name": "记录了交付音质",
+      "ok": true,
+      "detail": "128k"
+    },
+    {
+      "name": "文件大小 > 100KB",
+      "ok": true,
+      "detail": "3820077"
+    },
+    {
+      "name": "格式按音源返回",
+      "ok": true,
+      "detail": "MP3 / audio/mpeg"
+    },
+    {
+      "name": "QQ 曲目入队成功",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "name": "QQ 下载失败时给出音源原文原因",
+      "ok": true,
+      "detail": "音源取链失败：后端失败: 触发人机验证（已尝试：128k）"
+    }
+  ]
+}

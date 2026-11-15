@@ -1,0 +1,449 @@
+/* LX Music v1.9.2 界面样式
+ * 尺寸口径：HEADER_HEIGHT=42、LIST_ITEM_HEIGHT=54、抽屉 70%/≤300px、
+ * PlayerBar 按钮 46×46 / 图标 24px、搜索栏 38px。
+ * 颜色全部取自 themes.js 生成的 --c-* 变量（与原版派生算法一致）。
+ *
+ * v3.10.0 字号可调：所有 font-size 走 calc(Npx * var(--ui-fs))，
+ * --ui-fs 由「界面字体大小」设置（基准 14px → 1.0）写入；歌词单独用 --lyric-size。
+ */
+:root { --ui-fs: 1; --lyric-size: 16px; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; overflow: hidden; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: calc(14px * var(--ui-fs)); color: var(--c-font, #424242);
+  background: var(--c-app-background, #f2faf6);
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button { background: none; border: 0; padding: 0; cursor: pointer; }
+.hidden { display: none !important; }
+.lx-icon { font-size: calc(20px * var(--ui-fs)); color: inherit; }
+
+.app { position: relative; display: flex; flex-direction: column; height: 100%;
+  background: var(--c-app-background); }
+.page { display: flex; flex-direction: column; flex: 1; min-height: 0;
+  background: var(--c-main-background); }
+
+/* ---------------------------------------------------------------- 抽屉 */
+.drawer-mask { position: fixed; inset: 0; background: rgba(0,0,0,.38); z-index: 40;
+  opacity: 0; pointer-events: none; transition: opacity .2s; }
+.drawer-mask.show { opacity: 1; pointer-events: auto; }
+.drawer { position: fixed; top: 0; bottom: 0; left: 0; z-index: 41;
+  width: 70%; max-width: 300px; display: flex; flex-direction: column;
+  background: var(--c-content-background, #fff);
+  transform: translateX(-100%); transition: transform .22s ease;
+  box-shadow: 4px 0 24px rgba(0,0,0,.16); }
+.drawer.open { transform: none; }
+.drawer-head { padding: 40px 16px 50px; display: flex; align-items: center; justify-content: center;
+  background: var(--c-primary-light-700-alpha-500, #daeee4);
+  color: var(--c-primary-dark-100-alpha-300, #459e70); }
+.drawer-head .lx-icon { font-size: calc(28px * var(--ui-fs)); }
+.drawer-head span { margin-left: 16px; font-size: calc(28px * var(--ui-fs)); font-weight: 500; }
+.drawer-menus { flex: 1; overflow-y: auto; padding: 10px 0; }
+.nav-item { display: flex; align-items: center; width: 100%; padding: 13px 25px;
+  color: var(--c-font); text-align: left; }
+.nav-item .ni-icon { width: 24px; text-align: center; color: var(--c-font-label); }
+.nav-item .ni-icon .lx-icon { font-size: calc(20px * var(--ui-fs)); }
+.nav-item .ni-text { padding-left: 20px; font-size: calc(15px * var(--ui-fs)); }
+.nav-item.active { background: var(--c-primary-background, rgba(182,222,201,.3)); }
+.nav-item.active .ni-icon { color: var(--c-primary-font-active); }
+.nav-item.active .ni-text { color: var(--c-primary-font, var(--c-primary)); font-weight: 600; }
+.nav-badge { margin-left: auto; font-size: calc(11px * var(--ui-fs)); min-width: 18px; height: 18px; line-height: 18px;
+  text-align: center; border-radius: 9px; background: var(--c-badge-primary, #4daf7c); color: #fff; }
+.drawer-foot { border-top: 1px solid var(--c-border-background); padding: 6px 0 18px; }
+
+/* ---------------------------------------------------------------- Header */
+.header { height: 42px; min-height: 42px; display: flex; align-items: center;
+  padding: 0 5px; z-index: 10; background: var(--c-main-background); }
+.h-btn { width: 42px; height: 42px; display: flex; align-items: center; justify-content: center;
+  color: var(--c-font); }
+.h-btn .lx-icon { font-size: calc(18px * var(--ui-fs)); }
+.h-title { flex: 1; height: 42px; text-align: left; padding-left: 14px; font-size: calc(18px * var(--ui-fs));
+  color: var(--c-font); }
+.h-extra { display: flex; align-items: center; gap: 4px; }
+.h-extra .lx-icon { font-size: calc(18px * var(--ui-fs)); }
+/* v3.13.5：搜索页右上角的「歌曲 / 歌单」标签是死控件（只改自身高亮，不影响搜索），已删除 */
+
+/* ---------------------------------------------------------------- 主区 */
+.view { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  background: var(--c-main-background); -webkit-overflow-scrolling: touch; }
+.pad { padding: 10px 12px 24px; }
+
+/* 搜索页 */
+.searchbar { height: 38px; display: flex; align-items: center; padding-right: 10px;
+  border-bottom: 1px solid var(--c-border-background); z-index: 2; }
+.src-select { position: relative; height: 100%; display: flex; align-items: center;
+  padding: 0 10px; gap: 3px; color: var(--c-font); font-size: calc(14px * var(--ui-fs)); }
+.src-select .lx-icon { font-size: calc(12px * var(--ui-fs)); color: var(--c-font-label); }
+.search-input { flex: 1; height: 30px; border: 0; outline: 0; background: transparent;
+  border-bottom: 1px solid var(--c-primary-alpha-300, rgba(77,175,124,.7)); padding: 0 6px; font-size: calc(14px * var(--ui-fs)); }
+.search-go { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+  color: var(--c-primary-font, var(--c-primary)); }
+.tip-section { padding: 14px 14px 6px; }
+.tip-title { font-size: calc(13px * var(--ui-fs)); color: var(--c-font-label); margin-bottom: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { padding: 6px 12px; border-radius: 14px; font-size: calc(13px * var(--ui-fs));
+  background: var(--c-button-background, rgba(182,222,201,.3)); color: var(--c-font); }
+.welcome { text-align: center; color: var(--c-font-label); padding: 36px 0 18px; font-size: calc(15px * var(--ui-fs)); }
+.sec-head { display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px 6px; }
+.sec-head h3 { margin: 0; font-size: calc(15px * var(--ui-fs)); font-weight: 600; }
+.sec-head .lx-icon { font-size: calc(16px * var(--ui-fs)); color: var(--c-font-label); }
+
+/* 歌曲列表：行高 54 */
+.music-list { width: 100%; }
+.m-row { height: 54px; display: flex; align-items: center; padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--c-border-background, rgba(0,0,0,.06)); }
+.m-row:active { background: var(--c-button-background); }
+.m-row.playing .m-name { color: var(--c-primary-font, var(--c-primary)); }
+.m-idx { width: 26px; flex: none; text-align: center; color: var(--c-font-label); font-size: calc(12px * var(--ui-fs)); }
+.m-main { flex: 1; min-width: 0; }
+.m-name { font-size: calc(14px * var(--ui-fs)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-sub { font-size: calc(11px * var(--ui-fs)); color: var(--c-font-label); margin-top: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-meta { flex: none; font-size: calc(11px * var(--ui-fs)); color: var(--c-font-label); padding: 0 8px; text-align: right; }
+.m-src { flex: none; font-size: calc(10px * var(--ui-fs)); padding: 2px 5px; border-radius: 3px;
+  background: var(--c-button-background); color: var(--c-primary-font, var(--c-primary)); }
+.m-act { flex: none; width: 30px; height: 40px; display: flex; align-items: center; justify-content: center;
+  color: var(--c-font-label); }
+.m-act .lx-icon { font-size: calc(17px * var(--ui-fs)); }
+.list-header { display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+  border-bottom: 1px solid var(--c-list-header-border-bottom, rgba(77,175,124,.1)); }
+.btn { padding: 6px 12px; border-radius: 5px; font-size: calc(13px * var(--ui-fs));
+  background: var(--c-button-background); color: var(--c-font); }
+.btn.primary { background: var(--c-primary); color: #fff; }
+.btn.ghost { background: transparent; border: 1px solid var(--c-border-background); }
+.btn.sm { padding: 4px 9px; font-size: calc(12px * var(--ui-fs)); }
+.chk { width: 18px; height: 18px; flex: none; }
+
+/* 卡片网格（歌单 / 榜单） */
+.grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 10px 12px; }
+.card { border-radius: 8px; overflow: hidden; background: var(--c-content-background);
+  border: 1px solid var(--c-border-background); }
+.card-cover { height: 92px; display: flex; align-items: flex-end; padding: 10px;
+  color: #fff; font-size: calc(16px * var(--ui-fs)); font-weight: 600;
+  background: linear-gradient(135deg, var(--card-color, #4daf7c), rgba(0,0,0,.18)); }
+.card-body { padding: 8px 10px 10px; }
+.card-name { font-size: calc(13px * var(--ui-fs)); line-height: 1.35; height: 36px; overflow: hidden; }
+.card-sub { font-size: calc(11px * var(--ui-fs)); color: var(--c-font-label); margin-top: 5px; }
+/* 歌单封面：有图时铺满并压暗，名称仍压在底部 */
+.pl-cover-card { position: relative; overflow: hidden; }
+.pl-cover-card img { position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+  object-fit: cover; }
+.pl-cover-card::after { content: ''; position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+  background: linear-gradient(to bottom, rgba(0,0,0,0) 40%, rgba(0,0,0,.6)); }
+.pl-cover-card span { position: relative; z-index: 1; }
+/* 歌单详情头部 */
+.pl-head { display: flex; gap: 12px; padding: 14px; align-items: center; }
+.pl-cover { width: 84px; height: 84px; border-radius: 8px; object-fit: cover; flex: none; }
+.pl-cover.ph { display: flex; align-items: center; justify-content: center; font-size: calc(30px * var(--ui-fs));
+  background: var(--c-button-background); color: var(--c-font-label); }
+.pl-meta { min-width: 0; flex: 1; }
+.pl-name { font-size: calc(15px * var(--ui-fs)); font-weight: 600; line-height: 1.4; margin-bottom: 6px;
+  word-break: break-all; }
+.tabs-scroll { display: flex; gap: 6px; overflow-x: auto; padding: 9px 12px; white-space: nowrap; }.tabs-scroll button { padding: 5px 11px; border-radius: 13px; font-size: calc(12px * var(--ui-fs));
+  background: var(--c-button-background); color: var(--c-font-label); }
+.tabs-scroll button.on { background: var(--c-primary); color: #fff; }
+
+/* 我的列表：左右布局 */
+.mylist-layout { display: flex; min-height: 100%; }
+.list-nav { width: 118px; flex: none; border-right: 1px solid var(--c-border-background); }
+.list-nav button { display: block; width: 100%; text-align: left; padding: 12px 10px;
+  font-size: calc(13px * var(--ui-fs)); color: var(--c-font-label); border-left: 3px solid transparent; }
+.list-nav button.on { color: var(--c-primary-font, var(--c-primary));
+  border-left-color: var(--c-primary); background: var(--c-button-background); }
+.list-content { flex: 1; min-width: 0; }
+.multi-bar { display: flex; align-items: center; gap: 6px; padding: 8px 10px;
+  background: var(--c-button-background); flex-wrap: wrap; }
+
+/* 设置 */
+.set-group { padding: 0 0 6px; }
+.set-group-title { padding: 14px 14px 7px; font-size: calc(12px * var(--ui-fs)); color: var(--c-primary-font, var(--c-primary)); }
+.set-row { display: flex; align-items: center; min-height: 50px; padding: 8px 14px;
+  border-bottom: 1px solid var(--c-border-background); gap: 10px; }
+.set-row .sr-main { flex: 1; min-width: 0; }
+.set-row .sr-name { font-size: calc(14px * var(--ui-fs)); }
+.set-row .sr-desc { font-size: calc(11px * var(--ui-fs)); color: var(--c-font-label); margin-top: 3px; }
+.set-row select, .set-row input[type=number], .set-row input[type=text] {
+  border: 1px solid var(--c-border-background); background: var(--c-content-background);
+  border-radius: 4px; padding: 5px 7px; font-size: calc(13px * var(--ui-fs)); max-width: 130px; }
+/* v3.10.0：设置页「滑块 + 数字框」，两者都可操作，拖动/键入实时生效 */
+.set-row .sr-range { display: flex; align-items: center; gap: 8px; flex: none; }
+.set-row .sr-range input[type=range] { width: 96px; height: 26px; margin: 0;
+  accent-color: var(--c-primary); background: transparent; padding: 0; }
+.set-row .sr-range .sr-num { width: 54px; max-width: 54px; text-align: center; }
+.switch { position: relative; width: 40px; height: 22px; flex: none; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch i { position: absolute; inset: 0; border-radius: 11px; background: var(--c-200, #d3d3d3);
+  transition: .2s; }
+.switch i:before { content: ''; position: absolute; width: 18px; height: 18px; left: 2px; top: 2px;
+  border-radius: 50%; background: #fff; transition: .2s; }
+.switch input:checked + i { background: var(--c-primary); }
+.switch input:checked + i:before { transform: translateX(18px); }
+.theme-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 8px 14px 14px; }
+.theme-dot { height: 46px; border-radius: 6px; border: 2px solid transparent;
+  display: flex; align-items: flex-end; justify-content: center; padding-bottom: 4px;
+  font-size: calc(10px * var(--ui-fs)); color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.5); }
+.theme-dot.on { border-color: var(--c-font); }
+
+/* 下载 */
+.dl-stats { display: flex; gap: 8px; padding: 12px; }
+.dl-stat { flex: 1; text-align: center; padding: 10px 4px; border-radius: 7px;
+  background: var(--c-button-background); }
+.dl-stat b { display: block; font-size: calc(19px * var(--ui-fs)); color: var(--c-primary-font, var(--c-primary)); }
+.dl-stat span { font-size: calc(11px * var(--ui-fs)); color: var(--c-font-label); }
+.dl-item { padding: 10px 14px; border-bottom: 1px solid var(--c-border-background); }
+/* v3.13.0：已完成的任务整行可点 → 直接播放 */
+.dl-item.hit { cursor: pointer; }
+.dl-item.hit:active { background: var(--c-list-active, rgba(0,0,0,.04)); }
+.dl-play-ico { display: inline-flex; align-items: center; justify-content: center; margin-right: 6px;
+  color: var(--c-primary, #2bb27a); font-style: normal; vertical-align: middle; }
+.dl-head { display: flex; align-items: center; gap: 8px; }
+.dl-name { flex: 1; min-width: 0; font-size: calc(14px * var(--ui-fs)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dl-state { font-size: calc(11px * var(--ui-fs)); color: var(--c-font-label); }
+.dl-bar { height: 5px; border-radius: 3px; background: var(--c-100, #e9e9e9); margin: 8px 0 6px; overflow: hidden; }
+.dl-bar i { display: block; height: 100%; background: var(--c-primary); transition: width .15s; }
+.dl-meta { font-size: calc(11px * var(--ui-fs)); color: var(--c-font-label); display: flex; justify-content: space-between; }
+.dl-acts { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.dl-acts button { font-size: calc(12px * var(--ui-fs)); padding: 4px 10px; border-radius: 4px;
+  background: var(--c-button-background); }
+
+/* PlayerBar */
+.playerbar { position: relative; flex: none; min-height: 56px; display: flex; align-items: center;
+  padding: 5px 5px 5px 5px; background: var(--c-content-background, #fff);
+  border-top-left-radius: 6px; border-top-right-radius: 6px;
+  box-shadow: 0 -2px 10px rgba(0,0,0,.10); z-index: 12; }
+.pb-progress { position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: var(--c-border-background); }
+.pb-progress i { display: block; height: 100%; width: 0; background: var(--c-primary); }
+.pb-pic { width: 46px; height: 46px; flex: none; border-radius: 4px; display: flex;
+  align-items: center; justify-content: center; color: #fff;
+  background: linear-gradient(135deg, var(--c-primary), var(--c-primary-dark-300, #2c7a53)); }
+.pb-pic .lx-icon { font-size: calc(24px * var(--ui-fs)); }
+.pb-center { flex: 1; min-width: 0; padding-left: 5px; }
+.pb-title { font-size: calc(14px * var(--ui-fs)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pb-info { font-size: calc(11px * var(--ui-fs)); color: var(--c-font-label); margin-top: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pb-ctrl { display: flex; align-items: center; flex: none; padding: 0 5px; }
+.pb-btn { width: 46px; height: 46px; display: flex; align-items: center; justify-content: center;
+  color: var(--c-button-font, var(--c-primary)); }
+.pb-btn .lx-icon { font-size: calc(24px * var(--ui-fs)); }
+
+/* 全屏页面 / 播放详情 / 评论 */
+.overlay { position: fixed; inset: 0; z-index: 50; background: var(--c-main-background);
+  display: flex; flex-direction: column; }
+/* v3.13.4：歌单 / 榜单「目录页」不盖住底部播放条。
+ * 播放条固定在 .page 末端（不在滚动容器里），浮层底边上移一个播放条高度即可，
+ * 列表怎么上下滑都不会把它顶走。 */
+.overlay.ov-with-bar { bottom: var(--pb-h, 56px); }
+.ov-head { height: 48px; flex: none; display: flex; align-items: center; gap: 12px;
+  padding: 0 12px; border-bottom: 1px solid var(--c-border-background); }
+.ov-head .lx-icon { font-size: calc(20px * var(--ui-fs)); }
+.ov-head h2 { margin: 0; font-size: calc(16px * var(--ui-fs)); font-weight: 600; flex: 1; }
+.ov-body { flex: 1; min-height: 0; overflow-y: auto; }
+.detail-cover { width: 62%; max-width: 260px; aspect-ratio: 1; margin: 22px auto 16px;
+  border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  color: #fff; background: linear-gradient(135deg, var(--c-primary), var(--c-primary-dark-400, #256b48));
+  box-shadow: 0 8px 26px rgba(0,0,0,.18); }
+.detail-cover .lx-icon { font-size: calc(76px * var(--ui-fs)); }
+.detail-title { text-align: center; font-size: calc(18px * var(--ui-fs)); }
+.detail-sub { text-align: center; font-size: calc(12px * var(--ui-fs)); color: var(--c-font-label); margin-top: 5px; }
+.lyric { padding: 18px 20px 30px; text-align: center; }
+.lyric p { margin: 11px 0; font-size: var(--lyric-size); color: var(--c-font-label); transition: .2s; }
+.lyric p.on { color: var(--c-primary-font, var(--c-primary)); font-size: calc(var(--lyric-size) * 1.12); font-weight: 600; }
+.player-ctl { flex: none; padding: 8px 18px 24px; }
+.time-row { display: flex; justify-content: space-between; font-size: calc(11px * var(--ui-fs)); color: var(--c-font-label); }
+.seek { width: 100%; height: 4px; margin: 8px 0 12px; accent-color: var(--c-primary); }
+.ctl-row { display: flex; align-items: center; justify-content: space-around; }
+.ctl-row button { width: 48px; height: 48px; color: var(--c-primary-font, var(--c-primary)); }
+.ctl-row .lx-icon { font-size: calc(24px * var(--ui-fs)); }
+.ctl-row .big .lx-icon { font-size: calc(38px * var(--ui-fs)); }
+.cm-item { padding: 12px 14px; border-bottom: 1px solid var(--c-border-background); }
+.cm-user { font-size: calc(13px * var(--ui-fs)); color: var(--c-primary-font, var(--c-primary)); }
+.cm-time { font-size: calc(11px * var(--ui-fs)); color: var(--c-font-label); margin-left: 8px; }
+.cm-text { font-size: calc(14px * var(--ui-fs)); margin: 7px 0; line-height: 1.5; }
+.cm-acts { font-size: calc(12px * var(--ui-fs)); color: var(--c-font-label); display: flex; gap: 16px; }
+
+/* 弹层 / 菜单 / Toast */
+.modal-root { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.42);
+  display: flex; align-items: center; justify-content: center; padding: 24px; }
+.modal { width: 100%; max-width: 320px; border-radius: 10px; padding: 18px;
+  background: var(--c-content-background, #fff); box-shadow: 0 10px 40px rgba(0,0,0,.2); }
+.modal h3 { margin: 0 0 10px; font-size: calc(16px * var(--ui-fs)); }
+.modal p { font-size: calc(13px * var(--ui-fs)); color: var(--c-font-label); line-height: 1.6; }
+.modal input, .modal select { width: 100%; padding: 8px; margin: 8px 0;
+  border: 1px solid var(--c-border-background); border-radius: 5px; background: transparent; }
+.modal-acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.ctx-menu { position: fixed; z-index: 70; min-width: 160px; padding: 5px 0; border-radius: 7px;
+  background: var(--c-content-background, #fff); box-shadow: 0 6px 24px rgba(0,0,0,.22); }
+.ctx-menu button { display: flex; align-items: center; gap: 10px; width: 100%;
+  text-align: left; padding: 11px 16px; font-size: calc(14px * var(--ui-fs)); }
+.ctx-menu button:active { background: var(--c-button-background); }
+.ctx-menu button span { flex: 1; }
+.ctx-menu button em { font-style: normal; font-size: calc(11px * var(--ui-fs)); color: var(--c-font-label);
+  letter-spacing: .2px; white-space: nowrap; }
+.ctx-menu button.dim span { color: var(--c-font-label); }
+.ctx-menu button.dim em { opacity: .6; }
+.ctx-menu .ctx-head b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 74vw; }
+.ctx-menu .ctx-head { padding: 9px 16px 7px; border-bottom: 1px solid rgba(128,128,128,.16); }
+.ctx-menu .ctx-head b { display: block; font-size: calc(13px * var(--ui-fs)); font-weight: 600; }
+.ctx-menu .ctx-head span { display: block; margin-top: 2px; font-size: calc(11px * var(--ui-fs)); color: var(--c-font-label); }
+.ctx-menu.tall { max-height: 74vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.toast { position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 80;
+  max-width: 84%; padding: 9px 16px; border-radius: 18px; font-size: calc(13px * var(--ui-fs));
+  background: rgba(30,30,30,.86); color: #fff; }
+.empty { text-align: center; color: var(--c-font-label); padding: 46px 20px; font-size: calc(13px * var(--ui-fs)); }
+.empty .lx-icon { display: block; font-size: calc(40px * var(--ui-fs)); margin-bottom: 12px; opacity: .5; }
+
+/* 深色主题微调 */
+[data-dark="1"] .pb-pic, [data-dark="1"] .card-cover { filter: brightness(.85); }
+[data-dark="1"] .chip, [data-dark="1"] .btn { color: var(--c-font); }
+
+/* ---- 自定义源管理（对齐 v1.9.2 UserApiEditModal 的信息层级） ---- */
+.api-note { display: flex; align-items: center; gap: 6px; padding: 7px 14px; font-size: calc(12px * var(--ui-fs));
+  color: var(--c-font-label); background: var(--c-primary-background-active, rgba(77,175,124,.08)); }
+.api-note .lx-icon { font-size: calc(14px * var(--ui-fs)); color: var(--c-primary); }
+.ua-panel { padding-bottom: 24px; }
+.ua-imports { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 14px 4px; }
+.ua-imports .btn { display: inline-flex; align-items: center; gap: 4px; }
+.ua-status { padding: 8px 14px; font-size: calc(12px * var(--ui-fs)); color: var(--c-font-label); }
+.ua-item { margin: 8px 12px; padding: 10px 12px; border-radius: 6px;
+  border: 1px solid var(--c-border-background, rgba(0,0,0,.08));
+  background: var(--c-content-background, #fff); }
+.ua-item.active { background: var(--c-primary-background-active, rgba(77,175,124,.10)); }
+.ua-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px; font-size: calc(14px * var(--ui-fs)); }
+.ua-head b { font-weight: 600; color: var(--c-font); }
+.ua-head span { font-size: calc(11px * var(--ui-fs)); color: var(--c-font-label); }
+.ua-head em { margin-left: auto; font-size: calc(11px * var(--ui-fs)); font-style: normal; }
+.ua-head em.ok { color: var(--c-primary); }
+.ua-head em.bad { color: #d9534f; }
+.ua-desc { margin-top: 4px; font-size: calc(11px * var(--ui-fs)); line-height: 1.5; color: var(--c-font-label); word-break: break-all; }
+.ua-err { margin-top: 5px; font-size: calc(11px * var(--ui-fs)); color: #d9534f; word-break: break-all; }
+.ua-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 9px; }
+.ua-acts button { padding: 5px 9px; font-size: calc(11px * var(--ui-fs)); border: none; border-radius: 4px;
+  background: var(--c-button-background, rgba(0,0,0,.06)); color: var(--c-font); }
+.ua-sw { display: inline-flex; align-items: center; gap: 4px; font-size: calc(11px * var(--ui-fs)); color: var(--c-font-label); }
+.ua-sw .switch { transform: scale(.78); transform-origin: left center; }
+.ua-tips { margin: 14px 14px 0; padding: 10px 12px; border-radius: 6px; font-size: calc(11px * var(--ui-fs));
+  line-height: 1.7; color: var(--c-font-label); background: var(--c-button-background, rgba(0,0,0,.04)); }
+.ua-tips code { font-family: monospace; color: var(--c-primary); }
+.ua-link { color: var(--c-primary); text-decoration: underline; cursor: pointer; }
+.ua-log { padding: 4px 14px 16px; font-size: calc(11px * var(--ui-fs)); line-height: 1.7; color: var(--c-font-label); word-break: break-all; }
+.ua-textarea { display: block; width: 100%; height: 210px; box-sizing: border-box; padding: 8px;
+  font-family: monospace; font-size: calc(11px * var(--ui-fs)); line-height: 1.5; resize: vertical;
+  border: 1px solid var(--c-border-background, rgba(0,0,0,.14)); border-radius: 4px;
+  background: var(--c-content-background, #fff); color: var(--c-font); }
+.ua-hint { margin-top: 6px; font-size: calc(11px * var(--ui-fs)); color: var(--c-font-label); }
+/* v3.12.0：下载目录输入框 —— 单行高度，不继承脚本输入框的 210px */
+.dl-dir-input { height: auto; min-height: calc(44px * var(--ui-fs)); padding: calc(10px * var(--ui-fs))
+  calc(12px * var(--ui-fs)) !important; font-family: inherit !important;
+  font-size: calc(14px * var(--ui-fs)) !important; resize: none; }
+[data-dark="1"] .ua-item, [data-dark="1"] .ua-textarea { background: rgba(255,255,255,.05); }
+[data-dark="1"] .ua-acts button { background: rgba(255,255,255,.10); color: var(--c-font); }
+
+@media (min-width: 760px) {
+  .app { max-width: 520px; margin: 0 auto; box-shadow: 0 0 40px rgba(0,0,0,.12); }
+  .drawer { left: max(0px, calc(50% - 260px)); }
+}
+
+/* ---------------------------------------------------- 平台选择条（v3.3.0） */
+.pf-bar {
+  display: flex; gap: 6px; padding: 8px 12px 2px; overflow-x: auto;
+  -webkit-overflow-scrolling: touch; flex: 0 0 auto;
+}
+.pf-bar::-webkit-scrollbar { display: none; }
+.pf-chip {
+  position: relative; flex: 0 0 auto; height: 28px; padding: 0 13px;
+  border-radius: 14px; border: 1px solid rgba(128,128,128,.28);
+  background: var(--c-main-background); color: var(--c-font-label);
+  font-size: calc(12px * var(--ui-fs)); line-height: 26px;
+}
+.pf-chip.on {
+  background: var(--c-primary); border-color: var(--c-primary); color: #fff;
+}
+.pf-chip i {
+  position: absolute; top: 4px; right: 5px; width: 5px; height: 5px;
+  border-radius: 50%; background: transparent;
+}
+.pf-chip.bound i { background: var(--c-primary); }
+.pf-chip.on.bound i { background: #fff; }
+
+/* 下载实时状态（v3.4.0） */
+.dl-live { padding: 0 12px 4px; font-size: calc(11px * var(--ui-fs)); color: var(--c-primary); min-height: 14px; }
+
+/* 下载任务：音质降级/重试提示（v3.5.0） */
+.dl-note { color: var(--c-primary); }
+
+/* ---------------------------------------------- 播放详情 / 音效（v3.7.0） */
+.detail-body { display: flex; flex-direction: column; overflow: hidden; }
+.detail-body .detail-cover { width: 46%; max-width: 190px; margin: 16px auto 10px; }
+.detail-body .detail-cover img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; display: block; }
+.detail-actions { display: flex; justify-content: space-around; padding-top: 8px; }
+.detail-actions button { display: flex; flex-direction: column; align-items: center; gap: 3px;
+  font-size: calc(11px * var(--ui-fs)); color: var(--c-font-label); padding: 2px 10px; }
+.detail-actions button .lx-icon { font-size: calc(20px * var(--ui-fs)); }
+.detail-actions button.on { color: var(--c-primary-font, var(--c-primary)); }
+/* v3.13.6：详情页「收藏」弹窗里的一句提示 */
+.collect-hint { padding: 2px 4px 8px; font-size: calc(12px * var(--ui-fs)); color: var(--c-font-label); }
+
+/* v3.11.0：详情页「下一首 / 队列」信息条 + 队列页 */
+.dq { flex: none; margin: 10px 16px 2px; padding: 6px 10px; border-radius: 6px;
+  background: var(--c-content-background, #fff); cursor: pointer; }
+.dq-row { display: flex; align-items: center; gap: 8px; min-height: 22px; }
+.dq-row + .dq-row { margin-top: 2px; }
+.dq-k { flex: none; font-size: calc(11px * var(--ui-fs)); color: var(--c-font-label); }
+.dq-v { flex: 1; min-width: 0; font-size: calc(12px * var(--ui-fs)); color: var(--c-font);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dq-meta .dq-v { color: var(--c-font-label); }
+.dq-go { flex: none; font-size: calc(14px * var(--ui-fs)); color: var(--c-font-label); }
+.dq:active { background: var(--c-100, #f0f0f0); }
+
+.q-head { display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px 8px; font-size: calc(12px * var(--ui-fs)); color: var(--c-font-label); }
+.q-head .btn { display: inline-flex; align-items: center; gap: 4px; }
+.q-head .lx-icon { font-size: calc(13px * var(--ui-fs)); }
+.q-item { display: flex; align-items: center; gap: 10px; padding: 9px 16px;
+  border-bottom: 1px solid var(--c-border-background); }
+.q-item:active { background: var(--c-100, #f0f0f0); }
+.q-item.on { background: var(--c-100, #f0f0f0); }
+.q-i { flex: none; width: 22px; text-align: center; font-size: calc(13px * var(--ui-fs));
+  color: var(--c-font-label); }
+.q-item.on .q-i { color: var(--c-primary-font, var(--c-primary)); }
+.q-item.on .q-i .lx-icon { font-size: calc(16px * var(--ui-fs)); }
+.q-main { flex: 1; min-width: 0; }
+.q-name { font-size: calc(14px * var(--ui-fs)); color: var(--c-font);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.q-item.on .q-name { color: var(--c-primary-font, var(--c-primary)); }
+.q-sub { margin-top: 2px; font-size: calc(11px * var(--ui-fs)); color: var(--c-font-label);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.q-dur { flex: none; font-size: calc(11px * var(--ui-fs)); color: var(--c-font-label); }
+
+.lyric { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 6px 20px 26px;
+  -webkit-overflow-scrolling: touch; }
+.lyric .lc-line { margin: 9px 0; }
+.lyric .lc-line .lc-main { display: block; font-size: var(--lyric-size); color: var(--c-font-label); }
+.lyric .lc-line.on .lc-main { color: var(--c-primary-font, var(--c-primary)); font-size: calc(var(--lyric-size) * 1.12); font-weight: 600; }
+.lyric .lc-line .lc-sub { display: block; font-size: calc(var(--lyric-size) * 0.82); opacity: .72; margin-top: 2px; }
+.lyric .lc-empty { font-size: calc(13px * var(--ui-fs)); color: var(--c-font-label); }
+.lyric .lc-plain p { margin: 9px 0; color: var(--c-font-label); font-size: calc(14px * var(--ui-fs)); }
+
+.fx-wrap { padding: 2px 14px 30px; }
+.fx-row { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid var(--c-border-background); }
+.fx-label b { display: block; font-size: calc(14px * var(--ui-fs)); font-weight: 500; }
+.fx-label span { display: block; font-size: calc(11px * var(--ui-fs)); color: var(--c-font-label); margin-top: 2px; }
+.fx-sec { padding: 12px 0; border-bottom: 1px solid var(--c-border-background); }
+.fx-title { font-size: calc(12px * var(--ui-fs)); color: var(--c-font-label); margin-bottom: 8px; }
+.fx-title em { font-style: normal; opacity: .7; }
+.fx-sec .chip.on { background: var(--c-primary); color: #fff; }
+.fx-band { display: flex; align-items: center; gap: 8px; margin: 7px 0; }
+.fx-freq { width: 36px; font-size: calc(11px * var(--ui-fs)); color: var(--c-font-label); flex: none; }
+.fx-band input[type=range] { flex: 1; height: 4px; accent-color: var(--c-primary); }
+.fx-val { width: 28px; text-align: right; font-size: calc(11px * var(--ui-fs)); color: var(--c-font-label); flex: none; }
+.fx-foot { display: flex; align-items: center; gap: 10px; padding-top: 14px; }
+.fx-foot span { font-size: calc(11px * var(--ui-fs)); color: var(--c-font-label); }
+
+/* 音源卡片：默认标签与主按钮（v3.8.0） */
+.ua-head .ua-tag { font-size: calc(10px * var(--ui-fs)); line-height: 1; padding: 3px 6px; border-radius: 8px;
+  background: var(--c-primary); color: #fff; margin-left: 2px; }
+.ua-acts button.primary { background: var(--c-primary); color: #fff; }

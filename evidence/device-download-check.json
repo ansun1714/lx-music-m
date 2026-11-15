@@ -1,0 +1,112 @@
+{
+  "checks": [
+    {
+      "name": "本地音频服务可达",
+      "ok": true,
+      "detail": "{\"err\":null,\"status\":200}"
+    },
+    {
+      "name": "导入设备下载源",
+      "ok": true,
+      "detail": "ok:设备下载源"
+    },
+    {
+      "name": "酷我平台由该源提供地址",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "酷我搜索到真实歌曲",
+      "ok": true,
+      "detail": "发如雪 - 周杰伦"
+    },
+    {
+      "name": "下载任务完成",
+      "ok": true,
+      "detail": "done "
+    },
+    {
+      "name": "过程中有真实进度",
+      "ok": true,
+      "detail": "100%"
+    },
+    {
+      "name": "过程中统计到下载速度",
+      "ok": true,
+      "detail": "9722 KB/s"
+    },
+    {
+      "name": "文件大小与源文件一致（4,096,044 B）",
+      "ok": true,
+      "detail": "4096044"
+    },
+    {
+      "name": "扩展名按来源格式 = wav",
+      "ok": true,
+      "detail": "发如雪 - 周杰伦.wav"
+    },
+    {
+      "name": "落盘到 Download/LX Music",
+      "ok": true,
+      "detail": "Download/LX Music/发如雪 - 周杰伦.wav"
+    },
+    {
+      "name": "下载页显示已保存路径",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "下载页显示音质/格式/来源",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "passed": 12,
+  "total": 12,
+  "track": {
+    "id": "kw_118990",
+    "platform": "kw",
+    "songmid": "118990",
+    "name": "发如雪",
+    "singer": "周杰伦",
+    "album": "十一月的萧邦",
+    "duration": 299,
+    "time": "04:59",
+    "qualitys": [
+      "128k",
+      "320k",
+      "flac"
+    ],
+    "ext": "mp3",
+    "mime": "audio/mpeg",
+    "_raw": {
+      "songmid": "118990",
+      "name": "发如雪",
+      "singer": "周杰伦",
+      "album": "十一月的萧邦",
+      "duration": 299,
+      "rid": "118990"
+    }
+  },
+  "done": {
+    "id": "dl1_mwgqhp1u",
+    "trackId": "kw_118990",
+    "name": "发如雪",
+    "singer": "周杰伦",
+    "quality": "128k",
+    "size": 4096044,
+    "progress": 100,
+    "state": "done",
+    "path": "Download/LX Music/发如雪 - 周杰伦.wav",
+    "error": "",
+    "received": 4096044,
+    "total": 4096044,
+    "speed": 0,
+    "eta": -1,
+    "mime": "audio/wav",
+    "ext": "wav",
+    "filename": "发如雪 - 周杰伦.wav",
+    "format": "WAV",
+    "sourceLabel": "设备下载源"
+  }
+}

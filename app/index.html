@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="green" data-dark="0">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>LX Music</title>
+<link rel="stylesheet" href="theme-fallback.css">
+<link rel="stylesheet" href="icons.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <!-- 左侧抽屉：宽 70%，最大 300px -->
+  <div class="drawer-mask" id="drawerMask" data-act="close-drawer"></div>
+  <aside class="drawer" id="drawer">
+    <div class="drawer-head">
+      <i class="lx-icon lx-logo"></i><span>LX Music</span>
+    </div>
+    <nav class="drawer-menus" id="navMenus"></nav>
+    <div class="drawer-foot" id="drawerFoot"></div>
+  </aside>
+
+  <div class="page">
+    <!-- 顶部 Header：42px + 状态栏 -->
+    <header class="header" id="header">
+      <button class="h-btn" data-act="drawer" aria-label="菜单"><i class="lx-icon lx-menu"></i></button>
+      <button class="h-title" data-act="drawer" id="headerTitle">搜索</button>
+      <div class="h-extra" id="headerExtra"></div>
+    </header>
+
+    <!-- 主区：可横向滑动的 6 个视图 -->
+    <main class="view" id="view"></main>
+
+    <!-- 底部播放条 -->
+    <div class="playerbar" id="playerBar" data-act="open-detail">
+      <div class="pb-progress"><i id="pbProgressFill"></i></div>
+      <div class="pb-pic" id="pbPic"><i class="lx-icon lx-album"></i></div>
+      <div class="pb-center">
+        <div class="pb-title" id="pbTitle">LX Music</div>
+        <div class="pb-info" id="pbInfo">未播放</div>
+      </div>
+      <div class="pb-ctrl">
+        <button class="pb-btn" data-act="prev" aria-label="上一首"><i class="lx-icon lx-prevMusic"></i></button>
+        <button class="pb-btn" data-act="toggle" id="pbToggle" aria-label="播放"><i class="lx-icon lx-play"></i></button>
+        <button class="pb-btn" data-act="next" aria-label="下一首"><i class="lx-icon lx-nextMusic"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 全屏页面 / 弹层 / 菜单 / Toast -->
+  <div class="overlay hidden" id="overlay"></div>
+  <div class="modal-root hidden" id="modalRoot"></div>
+  <div class="ctx-menu hidden" id="contextMenu"></div>
+  <div class="toast hidden" id="toast"></div>
+</div>
+
+<script src="i18n.js"></script>
+<script src="themes.js"></script>
+<script src="data.js"></script>
+<script src="engine.js"></script>
+<script src="sound-effects.js"></script>
+<script src="source-api.js"></script>
+<script src="sources.js"></script>
+<script src="net-crypto.js"></script>
+<script src="platform.js"></script>
+<script src="quality.js"></script>
+<script src="lyrics.js"></script>
+<script src="download.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

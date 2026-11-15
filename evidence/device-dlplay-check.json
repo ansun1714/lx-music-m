@@ -1,0 +1,26 @@
+{
+  "at": "2026-11-15T11:28:33.448Z",
+  "phase": "persist",
+  "results": [
+    {
+      "name": "重启后下载任务仍在且带路径",
+      "ok": true,
+      "extra": "Download/LX Music/点行播放测试 - 歌手.wav (13)"
+    },
+    {
+      "name": "/__local 仍能取到已保存文件",
+      "ok": true,
+      "extra": "{\"status\":206,\"bytes\":100}"
+    },
+    {
+      "name": "重启后点行真的开始播放（曲库是空的也能播）",
+      "ok": true,
+      "extra": "playing=true"
+    },
+    {
+      "name": "重启后走的是本地文件",
+      "ok": true,
+      "extra": "https://app.echo.local/__local?p=Download%2FLX+Music%2F%E7%82%B9%E8%A1"
+    }
+  ]
+}

@@ -1,0 +1,103 @@
+{
+  "device": "https://app.echo.local/index.html",
+  "passed": 19,
+  "total": 19,
+  "failed": 0,
+  "results": [
+    {
+      "name": "内置曲库为空",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "导入设备音质源",
+      "ok": true,
+      "extra": "ok:设备音质源"
+    },
+    {
+      "name": "音源服务酷我平台",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "酷我返回真实结果",
+      "ok": true,
+      "extra": "30"
+    },
+    {
+      "name": "歌曲行有隐藏菜单按钮",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "主菜单「下载…」",
+      "ok": true,
+      "extra": "<button data-act=\"menu-play\" data-id=\"kw_118990\"><span>播放</span></button><button data-act=\"menu-fav\" data-id=\"kw_118990\""
+    },
+    {
+      "name": "点「下载…」打开品质菜单",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "品质菜单含母带音质",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "品质菜单 9 档",
+      "ok": true,
+      "extra": "9"
+    },
+    {
+      "name": "品质菜单显示档位代号",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "品质菜单有返回项",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "按母带入队",
+      "ok": true,
+      "extra": "master"
+    },
+    {
+      "name": "下载完成",
+      "ok": true,
+      "extra": "done"
+    },
+    {
+      "name": "文件名来自母带请求",
+      "ok": true,
+      "extra": "MASTER测试 - 歌手.wav"
+    },
+    {
+      "name": "实际交付音质 = master",
+      "ok": true,
+      "extra": "master"
+    },
+    {
+      "name": "下载页显示母带音质",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "下载页音质下拉含母带",
+      "ok": true,
+      "extra": ""
+    },
+    {
+      "name": "320k 请求生效",
+      "ok": true,
+      "extra": "320K测试 - 歌手.wav"
+    },
+    {
+      "name": "320k 交付音质 = 320k",
+      "ok": true,
+      "extra": "320k"
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "ranAt": "2026-11-15T09:18:27.233Z",
+  "stage": "persist",
+  "passed": 10,
+  "total": 10,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "播放速率保持 1.5",
+      "ok": true,
+      "detail": "1.5"
+    },
+    {
+      "name": "引擎启动即按 1.5",
+      "ok": true,
+      "detail": "1.5"
+    },
+    {
+      "name": "界面字体大小保持 17",
+      "ok": true,
+      "detail": "17"
+    },
+    {
+      "name": "启动即应用 --ui-fs=1.214",
+      "ok": true,
+      "detail": "1.214"
+    },
+    {
+      "name": "文字确实是放大的",
+      "ok": true,
+      "detail": "16.996px"
+    },
+    {
+      "name": "歌词字体大小保持 22",
+      "ok": true,
+      "detail": "22"
+    },
+    {
+      "name": "启动即应用 --lyric-size=22px",
+      "ok": true,
+      "detail": "22px"
+    },
+    {
+      "name": "下载音质保持无损",
+      "ok": true,
+      "detail": "flac"
+    },
+    {
+      "name": "设置页下拉显示无损",
+      "ok": true,
+      "detail": "flac"
+    },
+    {
+      "name": "设置页数字框显示 1.5",
+      "ok": true,
+      "detail": "1.5"
+    }
+  ]
+}
