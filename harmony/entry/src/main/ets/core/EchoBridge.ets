@@ -25,7 +25,7 @@ import { webview } from '@kit.ArkWeb';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
-const DOMAIN: number = 0x0001;
+const DOMAIN: number = 0x0D00;
 const TAG: string = 'LXMusicBridge';
 
 /** 与 APK 一致的上限：二进制 24MB（音效取字节），文本 8MB（音源接口 / 脚本） */
@@ -154,6 +154,9 @@ export class EchoBridge {
       headers = {};
     }
     const timeout: number = Math.min(Number(timeoutStr) || 30000, 90000);
+    hilog.info(DOMAIN, TAG, 'httpRequest %{public}s %{public}s timeout=%{public}d bin=%{public}d',
+      method, url, timeout, binary ? 1 : 0);
+
     const req: http.HttpRequest = http.createHttp();
     this.httpCalls.set(key, req);
 
@@ -161,7 +164,6 @@ export class EchoBridge {
     let chunkIndex: number = 0;
     let respHeaders: string = '{}';
     let finished: boolean = false;
-    let statusCode: number = 0;
 
     const settleError = (msg: string): void => {
       if (finished) {
@@ -169,12 +171,24 @@ export class EchoBridge {
       }
       finished = true;
       this.httpCalls.delete(key);
+      hilog.error(DOMAIN, TAG, 'httpRequest failed: %{public}s', msg);
       try {
         req.destroy();
       } catch (e) {
       }
       this.runJs('window.LXHttp&&LXHttp.onResponse(' + this.jsJson(key) + ',' + this.jsJson(msg) +
         ',0,"","{}","",false)');
+    };
+
+    const emitChunk = (u8: Uint8Array): void => {
+      const helper: util.Base64Helper = new util.Base64Helper();
+      for (let off: number = 0; off < u8.length; off += CHUNK_BYTES) {
+        const end: number = Math.min(off + CHUNK_BYTES, u8.length);
+        const part: string = helper.encodeToStringSync(u8.slice(off, end));
+        this.runJs('window.LXHttp&&LXHttp.onChunk(' + this.jsJson(key) + ',' + chunkIndex + ',' +
+          this.jsJson(part) + ')');
+        chunkIndex++;
+      }
     };
 
     this.runJs('window.LXHttp&&LXHttp.onChunkStart(' + this.jsJson(key) + ',0)');
@@ -186,6 +200,7 @@ export class EchoBridge {
       } catch (e) {
         respHeaders = '{}';
       }
+      hilog.info(DOMAIN, TAG, 'headers received');
     });
 
     req.on('dataReceive', (data: ArrayBuffer) => {
@@ -200,15 +215,7 @@ export class EchoBridge {
         settleError('响应过大（超过 ' + Math.floor(limit / 1048576) + 'MB）');
         return;
       }
-      const u8: Uint8Array = new Uint8Array(data);
-      const helper: util.Base64Helper = new util.Base64Helper();
-      for (let off: number = 0; off < u8.length; off += CHUNK_BYTES) {
-        const end: number = Math.min(off + CHUNK_BYTES, u8.length);
-        const part: string = helper.encodeToStringSync(u8.slice(off, end));
-        this.runJs('window.LXHttp&&LXHttp.onChunk(' + this.jsJson(key) + ',' + chunkIndex + ',' +
-          this.jsJson(part) + ')');
-        chunkIndex++;
-      }
+      emitChunk(new Uint8Array(data));
     });
 
     const options: http.HttpRequestOptions = {
@@ -222,25 +229,74 @@ export class EchoBridge {
       options.extraData = body;
     }
 
-    req.requestInStream(url, options, (err: BusinessError, code: number) => {
-      if (finished) {
-        return;
-      }
-      finished = true;
-      this.httpCalls.delete(key);
-      if (err) {
-        this.runJs('window.LXHttp&&LXHttp.onResponse(' + this.jsJson(key) + ',' +
-          this.jsJson(err.message || 'request failed') + ',0,"","{}","",false)');
-        return;
-      }
-      statusCode = code;
-      this.runJs('window.LXHttp&&LXHttp.onResponse(' + this.jsJson(key) + ',null,' + statusCode +
-        ',"",' + this.jsJson(respHeaders) + ',"",' + binary + ')');
-      try {
-        req.destroy();
-      } catch (e) {
-      }
-    });
+    let streamStarted: boolean = false;
+    try {
+      req.requestInStream(url, options, (err: BusinessError, code: number) => {
+        if (finished) {
+          return;
+        }
+        finished = true;
+        this.httpCalls.delete(key);
+        if (err) {
+          hilog.error(DOMAIN, TAG, 'stream callback err: %{public}s', err.message || String(err.code));
+          this.runJs('window.LXHttp&&LXHttp.onResponse(' + this.jsJson(key) + ',' +
+            this.jsJson(err.message || 'request failed') + ',0,"","{}","",false)');
+          return;
+        }
+        hilog.info(DOMAIN, TAG, 'stream done code=%{public}d bytes=%{public}d', code, received);
+        this.runJs('window.LXHttp&&LXHttp.onResponse(' + this.jsJson(key) + ',null,' + code +
+          ',"",' + this.jsJson(respHeaders) + ',"",' + binary + ')');
+        try {
+          req.destroy();
+        } catch (e) {
+        }
+      });
+      streamStarted = true;
+      hilog.info(DOMAIN, TAG, 'requestInStream started');
+    } catch (e) {
+      const err = e as BusinessError;
+      hilog.error(DOMAIN, TAG, 'requestInStream threw: %{public}s',
+        err !== null && err !== undefined && err.message !== undefined ? err.message : String(e));
+    }
+
+    if (!streamStarted) {
+      // requestInStream 同步失败时退回一次性请求，避免整条链路直接哑掉
+      hilog.info(DOMAIN, TAG, 'fallback to request()');
+      req.request(url, options).then((resp: http.HttpResponse) => {
+        if (finished) {
+          return;
+        }
+        finished = true;
+        this.httpCalls.delete(key);
+        const code: number = resp.responseCode;
+        const payload: Object = resp.result;
+        if (payload !== null && payload !== undefined && typeof payload === 'object') {
+          const u8: Uint8Array = new Uint8Array(payload as ArrayBuffer);
+          received = u8.length;
+          if (received > limit) {
+            this.runJs('window.LXHttp&&LXHttp.onResponse(' + this.jsJson(key) + ',' +
+              this.jsJson('响应过大（超过 ' + Math.floor(limit / 1048576) + 'MB）') + ',0,"","{}","",false)');
+            return;
+          }
+          emitChunk(u8);
+          hilog.info(DOMAIN, TAG, 'request done code=%{public}d bytes=%{public}d', code, received);
+          this.runJs('window.LXHttp&&LXHttp.onResponse(' + this.jsJson(key) + ',null,' + code +
+            ',"",' + this.jsJson(respHeaders) + ',"",true)');
+        } else {
+          const text: string = payload === null || payload === undefined ? '' : String(payload);
+          hilog.info(DOMAIN, TAG, 'request done code=%{public}d chars=%{public}d', code, text.length);
+          this.runJs('window.LXHttp&&LXHttp.onResponse(' + this.jsJson(key) + ',null,' + code +
+            ',"",' + this.jsJson(respHeaders) + ',' + this.jsJson(text) + ',false)');
+        }
+        try {
+          req.destroy();
+        } catch (e) {
+        }
+      }).catch((err: BusinessError) => {
+        settleError(err !== null && err !== undefined && err.message !== undefined
+          ? err.message : 'request failed');
+      });
+    }
   }
 
   cancelRequest(key: string): void {

@@ -20,7 +20,7 @@ struct Index {
   aboutToAppear(): void {
     const ctx = getContext(this) as common.UIAbilityContext;
     this.bridge.init(ctx, this.controller);
-    hilog.info(0x0001, TAG, 'bridge ready');
+    hilog.info(0x0D00, TAG, 'bridge ready');
   }
 
   build() {
@@ -45,11 +45,17 @@ struct Index {
           ],
           controller: this.controller
         })
+        .onConsole((event) => {
+          if (event) {
+            hilog.info(0x0D00, TAG, 'console[%{public}d] %{public}s (line %{public}d)',
+              event.messageLevel, event.message, event.lineNumber);
+          }
+        })
         .onPageEnd(() => {
-          hilog.info(0x0001, TAG, 'web page loaded');
+          hilog.info(0x0D00, TAG, 'web page loaded');
         })
         .onErrorReceive(() => {
-          hilog.error(0x0001, TAG, 'web resource error');
+          hilog.error(0x0D00, TAG, 'web resource error');
         })
         .width('100%')
         .height('100%')
