@@ -53,13 +53,16 @@ jobs:
 
       # 想用固定签名（能覆盖安装旧版本）就把 keystore 以 base64 存进仓库 Secret
       - name: 还原固定签名密钥（可选）
-        if: env.LX_KEYSTORE_B64 != ''
         env:
           LX_KEYSTORE_B64: ${{ secrets.LX_KEYSTORE_B64 }}
         run: |
-          mkdir -p "$LX_KEYSTORE_DIR"
-          echo "$LX_KEYSTORE_B64" | base64 -d > "$LX_KEYSTORE_DIR/lx-replica.jks"
-          echo "已还原固定 keystore"
+          if [ -n "$LX_KEYSTORE_B64" ]; then
+            mkdir -p "$LX_KEYSTORE_DIR"
+            echo "$LX_KEYSTORE_B64" | base64 -d > "$LX_KEYSTORE_DIR/lx-replica.jks"
+            printf '已还原固定 keystore（%s 字节）\n' "$(stat -c %s "$LX_KEYSTORE_DIR/lx-replica.jks")"
+          else
+            echo "未配置 LX_KEYSTORE_B64，本次由构建脚本临时生成 keystore"
+          fi
 
       - name: 版本号一致性检查
         run: |
