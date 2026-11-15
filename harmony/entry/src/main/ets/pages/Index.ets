@@ -47,9 +47,9 @@ struct Index {
         })
         .onConsole((event) => {
           if (event) {
-            hilog.info(0x0D00, TAG, 'console[%{public}d] %{public}s (line %{public}d)',
-              event.messageLevel, event.message, event.lineNumber);
+            hilog.info(0x0D00, TAG, 'console %{public}s', event.message);
           }
+          return false;
         })
         .onPageEnd(() => {
           hilog.info(0x0D00, TAG, 'web page loaded');
