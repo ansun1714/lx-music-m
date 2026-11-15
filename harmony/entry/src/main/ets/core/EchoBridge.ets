@@ -538,9 +538,12 @@ export class EchoBridge {
       }
       this.runJs('window.LXDownloadBridge&&LXDownloadBridge.onDone(' + this.jsJson(key) + ',' +
         this.jsJson(job.destPath) + ',' + job.received + ')');
-      if (false) {
+      // 已设置保存文件夹 + 开启「完成后自动保存」：静默写入用户目录，不弹任何框。
+      // 这是 Android「下载落 Download/LX Music」在鸿蒙上的等价物（系统不允许应用直写公共目录，
+      // 必须用户先经文件夹选择器授权，再由 fileShare.persistPermission 持久化）。
+      if (this.autoExport && this.saveDirUri.length > 0) {
         const name: string = job.destPath.substring(job.destPath.lastIndexOf('/') + 1);
-        this.saveToDir(job.destPath, this.safeName(name));
+        this.saveToDir(job.destPath, this.safeName(name), true);
       }
     });
   }
@@ -760,9 +763,11 @@ export class EchoBridge {
   }
 
   /**
-   * 直接写入已选目录（零弹框）。失败时回退到系统保存框，保证用户总能拿到文件。
+   * 直接写入已选目录（零弹框）。allowRetry 控制权限类失败时是否先重新激活持久授权再试一次。
+   * 失败时按错误码分类：目录失效 → 清掉设置让用户重选；其它 → 提示手动导出（绝不弹保存框，
+   * 否则批量下载完成时会一串系统弹窗，这正是当初体验崩坏的原因）。
    */
-  private saveToDir(srcPath: string, name: string): void {
+  private saveToDir(srcPath: string, name: string, allowRetry: boolean): void {
     // docs:// 目录 URI 里的文件名需要按 URI 约定编码，否则中文文件名会打不开目标文件
     let safe: string = name;
     try {
@@ -776,12 +781,48 @@ export class EchoBridge {
       hilog.info(DOMAIN, TAG, 'export to dir ok bytes=%{public}s', String(res));
       this.toast('已自动保存到所选文件夹');
     }).catch((err: BusinessError) => {
-      const code: string = err !== null && err !== undefined && err.code !== undefined ? String(err.code) : '?';
+      const code: number = err !== null && err !== undefined && err.code !== undefined ? err.code : 0;
       const msg: string = err !== null && err !== undefined && err.message !== undefined ? err.message : String(err);
-      hilog.warn(DOMAIN, TAG, 'export to dir failed: %{public}s code=%{public}s', msg, code);
-      // 目录授权失效时不弹框、不清空设置，交由用户手动导出；把错误码带回设置页便于排查
-      this.toast('写入失败(' + code + ')，请在下载页点「保存到文件」');
-      this.runJs('window.LXSaveDir&&window.LXSaveDir.onFail(' + this.jsJson(code + ' ' + msg) + ')');
+      hilog.warn(DOMAIN, TAG, 'export to dir failed: %{public}s code=%{public}d', msg, code);
+      // 常见权限类错误（EPERM 13900001 / EACCES 13900013 / 13900042）：
+      // 系统可能回收了授权，重新激活一次再写；仍失败走下面的分类提示
+      if (allowRetry && (code === 13900001 || code === 13900013 || code === 13900042)) {
+        const uri: string = this.saveDirUri;
+        const mode: fileShare.OperationMode =
+          (fileShare.OperationMode.READ_MODE | fileShare.OperationMode.WRITE_MODE) as fileShare.OperationMode;
+        fileShare.activatePermission([{ uri: uri, operationMode: mode }]).then(() => {
+          hilog.info(DOMAIN, TAG, 'dir permission re-activated, retry write');
+          this.saveToDir(srcPath, name, false);
+        }).catch((e2: BusinessError) => {
+          hilog.warn(DOMAIN, TAG, 're-activate failed: %{public}s', e2.message);
+          this.saveToDir(srcPath, name, false);
+        });
+        return;
+      }
+      if (code === 13900002) {
+        // 目录本身不存在（用户删了文件夹 / 换了存储介质）：清空设置，避免之后每次下载都失败
+        this.saveDirUri = '';
+        this.forgetSaveDir();
+        this.toast('保存文件夹已不存在，请到 设置 → 下载目录 重新选择');
+      } else {
+        this.toast('写入失败(' + String(code) + ')，可在下载页点「保存到文件」导出');
+      }
+      this.runJs('window.LXSaveDir&&window.LXSaveDir.onFail(' + this.jsJson(String(code) + ' ' + msg) + ')');
+    });
+  }
+
+  /** 从 preferences 里删掉失效的保存目录 */
+  private forgetSaveDir(): void {
+    const c = this.ctx;
+    if (c === null) {
+      return;
+    }
+    preferences.getPreferences(c, 'lx_settings').then((pref: preferences.Preferences) => {
+      pref.deleteSync('export_dir');
+      pref.flush();
+      hilog.info(DOMAIN, TAG, 'export dir forgotten');
+    }).catch((err: BusinessError) => {
+      hilog.warn(DOMAIN, TAG, 'forget export dir failed: %{public}s', err.message);
     });
   }
 
