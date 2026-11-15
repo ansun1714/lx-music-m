@@ -1,0 +1,156 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ANDROID_BUILD_TOOLS_VERSION: '35.0.0'
+
+jobs:
+  build:
+    name: 构建 signed APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 安装 JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # SDK 安装、逻辑冒烟、无 Gradle 构建全放一个步骤，输出统一落到 ci-logs/build.log
+      # 不用第三方 setup-android：它失败时看不到原因，这里自己下 cmdline-tools
+      - name: 构建 signed APK
+        env:
+          LX_KEYSTORE_B64: ${{ secrets.LX_KEYSTORE_B64 }}
+        run: |
+          set -o pipefail
+          mkdir -p ci-logs
+          {
+            echo "== 环境 =="
+            java -version 2>&1 | head -n 2
+            node --version
+            python3 --version
+            export ANDROID_SDK_ROOT="$RUNNER_TEMP/android-sdk"
+            mkdir -p "$ANDROID_SDK_ROOT"
+            echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+            echo "== 下载 cmdline-tools =="
+            mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+            curl -fsSL -o /tmp/cmdline-tools.zip \
+              https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+            unzip -q /tmp/cmdline-tools.zip -d "$ANDROID_SDK_ROOT/cmdline-tools"
+            mv "$ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools" "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+            SM="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+            "$SM" --version
+            echo "== 接受许可 + 安装组件 =="
+            yes | "$SM" --licenses > /dev/null 2>&1 || true
+            "$SM" --install "platforms;android-34" "build-tools;35.0.0"
+            echo "== SDK 目录 =="
+            ls -1 "$ANDROID_SDK_ROOT/platforms"
+            ls -1 "$ANDROID_SDK_ROOT/build-tools"
+            echo "== 工作目录 =="
+            echo "LX_BUILD_WORK=$RUNNER_TEMP/lx-build" >> "$GITHUB_ENV"
+            echo "LX_KEYSTORE_DIR=$RUNNER_TEMP/lx-keystore" >> "$GITHUB_ENV"
+            mkdir -p "$RUNNER_TEMP/lx-build" "$RUNNER_TEMP/lx-keystore"
+            if [ -n "$LX_KEYSTORE_B64" ]; then
+              echo "$LX_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/lx-keystore/lx-replica.jks"
+              echo "已还原固定 keystore"
+            else
+              echo "未配置 LX_KEYSTORE_B64，本次由构建脚本生成临时 keystore"
+            fi
+            echo "== 版本号一致性 =="
+            python3 - <<'PY'
+          import re, sys, pathlib
+          bp = pathlib.Path('android/build.py').read_text(encoding='utf-8')
+          mf = pathlib.Path('android/AndroidManifest.xml').read_text(encoding='utf-8')
+          name = re.search(r'VERSION_NAME = (?:os\.environ\.get\("LX_VERSION_NAME", )?"([^"]+)"', bp).group(1)
+          code = re.search(r'VERSION_CODE = (?:os\.environ\.get\("LX_VERSION_CODE", )?"([^"]+)"', bp).group(1)
+          mname = re.search(r'android:versionName="([^"]+)"', mf).group(1)
+          mcode = re.search(r'android:versionCode="([^"]+)"', mf).group(1)
+          print("build.py %s (%s) / manifest %s (%s)" % (name, code, mname, mcode))
+          if (name, code) != (mname, mcode):
+              sys.exit("版本号不一致：请同步 android/build.py 与 AndroidManifest.xml")
+          PY
+            echo "== 生成单文件版 =="
+            node evidence/build-standalone.js
+            echo "== 逻辑冒烟 =="
+            node evidence/smoke-test.js
+            echo "== 构建 APK =="
+            python3 android/build.py
+            echo "== 产物 =="
+            ls -l LXMusic-v*.apk
+          } 2>&1 | tee ci-logs/build.log
+
+      - name: 记录产物信息
+        id: apk
+        run: |
+          APK=$(ls LXMusic-v*.apk | head -n 1)
+          SIZE=$(stat -c %s "$APK")
+          SHA=$(sha256sum "$APK" | cut -d' ' -f1)
+          echo "apk=$APK" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          {
+            echo "### 构建产物"
+            echo ""
+            echo "| 项 | 值 |"
+            echo "|---|---|"
+            echo "| 文件 | \`$APK\` |"
+            echo "| 大小 | $SIZE B |"
+            echo "| SHA-256 | \`$SHA\` |"
+            echo "| 提交 | \`$GITHUB_SHA\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 上传 APK（保留 14 天）
+        uses: actions/upload-artifact@v4
+        with:
+          name: LXMusic-apk
+          path: LXMusic-v*.apk
+          retention-days: 14
+          if-no-files-found: error
+
+      # 私有仓库的 Actions 日志外部看不到，失败时把日志尾部提交回当前分支便于排查
+      - name: 失败时回传日志
+        if: failure()
+        run: |
+          mkdir -p ci-logs
+          if [ -f ci-logs/build.log ]; then
+            tail -c 150000 ci-logs/build.log > ci-logs/last-failure.log
+          else
+            echo "构建步骤未启动，失败发生在 setup 阶段（checkout / node / java）" > ci-logs/last-failure.log
+          fi
+          git config user.name 'ci-bot'
+          git config user.email 'ci-bot@users.noreply.github.com'
+          git add ci-logs/last-failure.log
+          git commit -m "ci: 记录失败日志 [skip ci]" || exit 0
+          git push origin "HEAD:${{ github.head_ref || github.ref_name }}" || echo "日志回传失败"
+
+      - name: 打 tag 时附加到 Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: LXMusic-v*.apk
+          generate_release_notes: true
+          body: |
+            由 GitHub Actions 自动构建（`python android/build.py`，无 Gradle）。
+            APK 签名：CI 默认使用临时 keystore；配置 `LX_KEYSTORE_B64` Secret 后才会用固定签名。

@@ -41,8 +41,46 @@ node evidence/smoke-test.js                # 纯 Node 逻辑回归，无需设�
 python android/build.py                    # 需要 JDK 21 在 PATH 内
 ```
 
-APK 输出到仓库根目录，版本号在 `android/build.py` 的 `VERSION_NAME / VERSION_CODE / FINAL_APK`
-与 `android/AndroidManifest.xml` 两处同步。
+APK 输出到仓库根目录，版本号在 `android/build.py` 的 `VERSION_NAME / VERSION_CODE`
+与 `android/AndroidManifest.xml` 两处同步（CI 会校验一致性）。
+
+构建脚本不依赖 Gradle，只用 SDK 里的 `aapt2 / javac / d8 / zipalign / apksigner`，
+以下环境变量可覆盖默认行为：
+
+| 变量 | 默认 | 用途 |
+|---|---|---|
+| `ANDROID_SDK_ROOT` / `ANDROID_HOME` | `C:\Users\maoxu\tools\android-sdk` | Android SDK 根目录 |
+| `ANDROID_BUILD_TOOLS_VERSION` | `35.0.0` | build-tools 版本（34.0.0 的 R8 在 JDK 21 下会 NPE） |
+| `LX_BUILD_WORK` | `%TEMP%\lx-build` | 中间产物目录（必须是纯 ASCII 路径） |
+| `LX_KEYSTORE_DIR` | `%TEMP%\lx-replica-keystore` | 签名密钥目录 |
+| `LX_KS_PASS` / `LX_KS_ALIAS` | `lxmusic-replica` / `lxreplica` | 密钥口令与别名 |
+| `LX_VERSION_NAME` / `LX_VERSION_CODE` | 脚本内常量 | 临时覆盖版本号 |
+| `LX_FINAL_APK` | 仓库根 `LXMusic-v<版本>.apk` | 产物输出路径 |
+
+## 自动构建（GitHub Actions）
+
+`.github/workflows/build-apk.yml`：推送到 `main`、开 PR、打 `v*` tag 或手动
+`workflow_dispatch` 都会在 `ubuntu-latest` 上跑
+
+```
+setup JDK21 + Android SDK（platform 34 / build-tools 35.0.0）
+→ build-standalone.js → smoke-test.js（463 项，不过直接失败）
+→ python android/build.py（签名 + apksigner verify + aapt badging 校验）
+→ 上传 artifact「LXMusic-apk」→ 打 tag 时自动挂到 Release
+```
+
+产物信息（文件名、字节数、SHA-256）写在每次运行的 Step Summary 里。artifact 保留 14 天。
+
+**签名说明**：CI 每次跑都是全新容器，默认会在临时目录新生成一个 keystore，
+因此 CI 出的包签名与本地 `%TEMP%\lx-replica-keystore` 的包不同，直接覆盖安装会失败
+（需先卸载旧包）。要固定签名，把本地 keystore 转 base64 存成仓库 Secret `LX_KEYSTORE_B64`：
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("$env:TEMP\lx-replica-keystore\lx-replica.jks")) |
+  Set-Clipboard
+```
+
+然后到仓库 Settings → Secrets and variables → Actions 新建 `LX_KEYSTORE_B64` 粘贴即可。
 
 ## 设备验收
 

@@ -9,6 +9,7 @@ import os
 import sys
 import glob
 import shutil
+import tempfile
 import zipfile
 import hashlib
 import subprocess
@@ -18,31 +19,52 @@ ROOT = os.path.dirname(HERE)
 APP = os.path.join(ROOT, "app")
 # aapt2 / zipalign 是原生程序，在中文路径下无法打开目录（"Illegal byte sequence" /
 # "系统找不到指定的文件"）。所有中间产物放在纯 ASCII 工作目录，只有最终 APK 落回项目根目录。
-WORK = r"C:\temp\lx-build"
+# CI 用 LX_BUILD_WORK 指到 $RUNNER_TEMP，本地默认 %TEMP%\lx-build
+WORK = os.environ.get("LX_BUILD_WORK") or os.path.join(tempfile.gettempdir(), "lx-build")
 OUT = WORK
 ASSETS = os.path.join(OUT, "assets")
 CLASSES = os.path.join(OUT, "classes")
 DEX = os.path.join(OUT, "dex")
 RES_COPY = os.path.join(OUT, "res")
 # 密钥放在稳定的 ASCII 路径，不随 out/ 清理，保证重建后签名一致、可覆盖安装
-KEYSTORE_DIR = r"C:\temp\lx-replica-keystore"
+KEYSTORE_DIR = os.environ.get("LX_KEYSTORE_DIR") or os.path.join(
+    tempfile.gettempdir(), "lx-replica-keystore")
 KEYSTORE = os.path.join(KEYSTORE_DIR, "lx-replica.jks")
-STORE_PASS = "lxmusic-replica"
-KEY_PASS = "lxmusic-replica"
-ALIAS = "lxreplica"
+STORE_PASS = os.environ.get("LX_KS_PASS", "lxmusic-replica")
+KEY_PASS = STORE_PASS
+ALIAS = os.environ.get("LX_KS_ALIAS", "lxreplica")
 
-SDK = r"C:\Users\maoxu\tools\android-sdk"
-BT = os.path.join(SDK, "build-tools", "35.0.0")   # 必须 35.0.0：34.0.0 的 R8 在 JDK21 下会 NPE
+# SDK 位置：环境变量优先（GitHub Actions / macOS / Linux），本地回落到固定路径
+SDK = (os.environ.get("ANDROID_SDK_ROOT") or os.environ.get("ANDROID_HOME") or
+       r"C:\Users\maoxu\tools\android-sdk")
+BT_VER = os.environ.get("ANDROID_BUILD_TOOLS_VERSION", "35.0.0")
+# 必须 35.0.0（或更高）：34.0.0 的 R8 在 JDK21 下会 NPE
+EXE = ".exe" if os.name == "nt" else ""
+BT = os.path.join(SDK, "build-tools", BT_VER)
 PLATFORM = os.path.join(SDK, "platforms", "android-34")
 ANDROID_JAR = os.path.join(PLATFORM, "android.jar")
-AAPT2 = os.path.join(BT, "aapt2.exe")
-ZIPALIGN = os.path.join(BT, "zipalign.exe")
+AAPT2 = os.path.join(BT, "aapt2" + EXE)
+AAPT = os.path.join(BT, "aapt" + EXE)
+ZIPALIGN = os.path.join(BT, "zipalign" + EXE)
 D8_JAR = os.path.join(BT, "lib", "d8.jar")
 APKSIGNER_JAR = os.path.join(BT, "lib", "apksigner.jar")
 
-VERSION_NAME = "3.13.7"
-VERSION_CODE = "24"
-FINAL_APK = os.path.join(ROOT, "LXMusic-v3.13.7.apk")
+VERSION_NAME = os.environ.get("LX_VERSION_NAME", "3.13.7")
+VERSION_CODE = os.environ.get("LX_VERSION_CODE", "24")
+FINAL_APK = os.environ.get("LX_FINAL_APK") or os.path.join(
+    ROOT, "LXMusic-v%s.apk" % VERSION_NAME)
+
+
+def preflight():
+    """构建前把缺的组件一次性列清楚，CI 里报错比半路炸好定位。"""
+    need = [AAPT2, ZIPALIGN, D8_JAR, APKSIGNER_JAR, ANDROID_JAR]
+    missing = [p for p in need if not os.path.exists(p)]
+    if missing:
+        raise RuntimeError(
+            "缺少构建组件（SDK=%s, build-tools=%s）：\n  %s\n"
+            "可用 ANDROID_SDK_ROOT / ANDROID_BUILD_TOOLS_VERSION 指定。"
+            % (SDK, BT_VER, "\n  ".join(missing)))
+
 
 
 def run(args, cwd=None, check=True):
@@ -67,7 +89,9 @@ def sha256(p):
 
 
 def main():
+    preflight()
     print("== 1/9 准备单文件版与 assets ==")
+    print("    SDK %s (build-tools %s)" % (SDK, BT_VER))
     standalone = os.path.join(APP, "standalone.html")
     if not os.path.exists(standalone):
         run(["node", os.path.join(ROOT, "evidence", "build-standalone.js")], cwd=ROOT)
@@ -149,10 +173,9 @@ def main():
     print("== 9/9 校验 ==")
     run(["java", "-jar", APKSIGNER_JAR, "verify", "--verbose", FINAL_APK])
     # aapt 在中文路径会报 Illegal byte sequence，复制到纯 ASCII 路径再 dump
-    tmp = r"C:\temp\lx-v3-badging.apk"
-    os.makedirs(os.path.dirname(tmp), exist_ok=True)
+    tmp = os.path.join(WORK, "badging.apk")
     shutil.copyfile(FINAL_APK, tmp)
-    rc, badging = run([os.path.join(BT, "aapt.exe"), "dump", "badging", tmp], check=False)
+    rc, badging = run([AAPT, "dump", "badging", tmp], check=False)
     for line in badging.splitlines():
         if line.startswith("package:") or "application-label:" in line or "sdkVersion" in line:
             print("    " + line)
