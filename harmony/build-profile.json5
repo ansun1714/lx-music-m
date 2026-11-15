@@ -6,6 +6,7 @@
         "name": "default",
         "compileSdkVersion": 15,
         "compatibleSdkVersion": 12,
+        "targetSdkVersion": 15,
         "runtimeOS": "OpenHarmony",
         "buildOption": {
           "strictMode": {

@@ -48,10 +48,8 @@ struct Index {
         .onPageEnd(() => {
           hilog.info(0x0001, TAG, 'web page loaded');
         })
-        .onErrorReceive((event) => {
-          if (event) {
-            hilog.error(0x0001, TAG, 'web error: %{public}s', event.error.errorMsg);
-          }
+        .onErrorReceive(() => {
+          hilog.error(0x0001, TAG, 'web resource error');
         })
         .width('100%')
         .height('100%')
