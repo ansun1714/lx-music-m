@@ -253,11 +253,20 @@
     };
   }
   function rawMusicInfo(track) {
-    return track && track._raw ? track._raw : {
+    var base = (track && track._raw) ? track._raw : {
       songmid: track && track.songmid, name: track && track.name,
-      singer: track && track.singer, album: track && track.album,
-      source: track && track.apiSource
+      singer: track && track.singer, album: track && track.album
     };
+    /* 音源脚本几乎都按 musicInfo.source 选平台接口；缺这个字段时星海等脚本会直接返回 null，
+     * 表现就是「歌词加载几秒后显示没有」。这里统一补齐常用别名。 */
+    var out = {};
+    Object.keys(base || {}).forEach(function (k) { out[k] = base[k]; });
+    if (!out.source) out.source = (track && (track.apiSource || track.platform || track.source)) || '';
+    if (!out.songmid && track && track.songmid) out.songmid = track.songmid;
+    if (!out.musicId && track && track.songmid) out.musicId = track.songmid;
+    if (!out.albumName && track && track.album) out.albumName = track.album;
+    if (!out.interval && track && track.duration) out.interval = String(track.duration);
+    return out;
   }
 
   // ---------------------------------------------------------------- 搜索
@@ -530,7 +539,7 @@
     if (lyricCache[track.id]) return Promise.resolve(lyricCache[track.id]);
     // 默认音源不一定实现 lyric：按「默认优先」的顺序找第一个声明了 lyric 的音源
     var chain = sourceChain(track).filter(function (a) { return supports(a, 'lyric'); });
-    if (!chain.length) return Promise.resolve(null);
+    if (!chain.length) return platformLyric(track);
     var i = 0;
     function next() {
       if (i >= chain.length) return Promise.resolve(null);
@@ -551,7 +560,37 @@
         });
       }).catch(function () { return next(); });
     }
-    return next();
+    /* 音源链路全失败时的兜底：平台自身的公开歌词接口。
+     * 真机上星海脚本对 wy 会直接回 null（缺 source 字段或脚本自身限制），
+     * 这时不该让用户看到「暂无歌词」。 */
+    return platformLyric(track).then(function (r) { return r || next(); });
+  }
+
+  function platformLyric(track) {
+    var plat = track.platform || String(track.id || '').split('_')[0];
+    var mid = track.songmid || String(track.id || '').replace(/^[a-z]+_/, '');
+    var LP = window.LXPlatform;
+    if (!mid || !LP || typeof LP.httpJson !== 'function') return Promise.resolve(null);
+    if (plat === 'wy') {
+      return LP.httpJson('https://music.163.com/api/song/lyric?id=' + encodeURIComponent(mid) + '&lv=-1&kv=-1&tv=-1',
+        { headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10)', Referer: 'https://music.163.com/' } })
+        .then(function (d) {
+          var l = d && d.lrc && d.lrc.lyric;
+          diagLyric('平台内置/wy', !!l, l ? l.length + ' 字' : '返回空');
+          if (!l) return null;
+          return { lyric: String(l), tlyric: String(d.tlyric && d.tlyric.lyric || '') };
+        }).catch(function (e) { diagLyric('平台内置/wy', false, (e && e.message) || e); return null; });
+    }
+    if (plat === 'kw') {
+      return LP.http('https://newlyric.kuwo.cn/newlyric.lrc?musicId=' + encodeURIComponent(mid),
+        { headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10)' } })
+        .then(function (r) {
+          var l = r && r.body && /\[[0-9]+:/.test(r.body) ? r.body : '';
+          diagLyric('平台内置/kw', !!l, l ? l.length + ' 字' : '返回空');
+          return l ? { lyric: String(l), tlyric: '' } : null;
+        }).catch(function (e) { diagLyric('平台内置/kw', false, (e && e.message) || e); return null; });
+    }
+    return Promise.resolve(null);
   }
 
   // ---------------------------------------------------------------- 内置示例音源

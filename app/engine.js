@@ -337,7 +337,17 @@
       clearTimeout(timer);
       nx.removeEventListener('canplay', onCanPlay);
       nx.removeEventListener('error', onErr);
-      if (err || self._blobPending !== (ref.origin || key)) return;
+      /* 换入失败（超时 / blob 不可播）：不能像旧版那样静默放弃音频图，
+       * 直接退到「解码成 AudioBuffer 走音效链」，音乐与音效都保住。 */
+      if (err) {
+        self._lastError = 'Blob 接管失败: ' + (err.message || err);
+        dlog('audio', self._lastError);
+        try { nx.pause(); nx.removeAttribute('src'); nx.load(); } catch (e) {}
+        if (self._playViaBuffer(ref.origin || key, ref, self.position(), self.playing)) return;
+        if (self.onGraphUnavailable) self.onGraphUnavailable(self._lastError);
+        return;
+      }
+      if (self._blobPending !== (ref.origin || key)) return;
       /* 用「切换这一刻」的位置，而不是发起请求时的位置：
        * 取字节要走网络，期间旧元素一直在播，用旧位置会让进度往回跳（听到一小段重复）。
        * 注意必须先取位置再摘 src —— removeAttribute('src') 会把 currentTime 归零。 */
@@ -428,6 +438,12 @@
 
   AudioEngine.prototype._applyBuffer = function (buf, ref, startAt, autoplay) {
     if (!buf) return;
+    /* 从原生 <audio> 切过来时必须先停掉旧元素，否则两个源同时出声 */
+    if (this.el) {
+      try { this.el.pause(); this.el.removeAttribute('src'); this.el.load(); } catch (e) {}
+      this.el = null;
+    }
+    if (this.mediaSrc) { try { this.mediaSrc.disconnect(); } catch (e) {} }
     this.mode = 'buffer';
     this._rawUrl = (ref && (ref.origin || ref.url)) || this._rawUrl;
     this._lastRef = ref;
@@ -502,8 +518,10 @@
       if (self._blobPending !== key) return;             // 已经切歌，丢弃
       if (!err && bytes && typeof bytes.size === 'number' && !bytes.size) err = new Error('空音频');
       if (err || !bytes) {
+        self._lastError = '音效取字节失败: ' + (err && err.message);
+        dlog('audio', self._lastError);
+        if (self._playViaBuffer(url, ref, self.position(), self.playing)) return;
         if (self.onGraphUnavailable) self.onGraphUnavailable(err && err.message);
-        dlog('audio', 'blob fetch fail: ' + (err && err.message));
         return;
       }
       var mime = (ref.mime || self.mediaMime || 'audio/mpeg');
