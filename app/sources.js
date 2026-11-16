@@ -599,10 +599,18 @@
         }).catch(function (e) { diagLyric('平台内置/kw', false, (e && e.message) || e); return null; });
     }
     if (plat === 'mg') {
-      return LP.httpJson('https://music.migu.cn/v3/api/music/audioPlayer/getLyric?copyrightId=' + encodeURIComponent(mid),
+      return LP.http('https://music.migu.cn/v3/api/music/audioPlayer/getLyric?copyrightId=' + encodeURIComponent(mid),
         { headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10)', Referer: 'https://music.migu.cn/' } })
-        .then(function (d) {
-          var l = (d && (d.lyric || (d.data && d.data.lyric))) || '';
+        .then(function (r) {
+          var raw = (r && r.body) || '';
+          var l = '';
+          if (/^\s*[\[{]/.test(raw)) {
+            try {
+              var d = JSON.parse(raw);
+              l = d && (d.lyric || (d.data && d.data.lyric)) || '';
+            } catch (e) { l = ''; }
+          }
+          if (!l && /\[[0-9]+:/.test(raw)) l = raw;   // 部分源直接回 LRC 文本
           diagLyric('平台内置/mg', !!l, l ? l.length + ' 字' : '返回空');
           return l ? { lyric: String(l), tlyric: '' } : null;
         }).catch(function (e) { diagLyric('平台内置/mg', false, (e && e.message) || e); return null; });

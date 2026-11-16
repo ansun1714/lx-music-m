@@ -1436,6 +1436,11 @@
       }
     }
     if (want === bound) return;
+    /* 冷启动阶段音效链未就绪、原生 <audio> 没挂上；链就绪后先直接补挂现有元素，
+     * 挂不上再走 Blob 重建路径。 */
+    try { if (engine.attachEl) engine.attachEl(); } catch (e) {}
+    bound = engine.isGraphBound ? engine.isGraphBound() : bound;
+    if (want === bound) return;
     try {
       engine.rebuild();
     } catch (e) {
@@ -2225,7 +2230,7 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
         ' pos=' + (engine.position ? Math.round(engine.position() * 10) / 10 : '-') + 's' +
         '\n音效: enabled=' + snd2.enabled + ' preset=' + snd2.preset + ' reverb=' + snd2.reverb +
         ' surround=' + (!!snd2.surround) + '\neq=' + JSON.stringify(snd2.eq) +
-        '\ngraphHost=' + (st2.graphHost || '-') + ' lite=' + st2.liteUrl +
+        '\ngraphHost=' + (st2.graphHost || '-') + ' lite=' + st2.liteUrl + ' pending=' + !!st2.blobPending +
         '\nlastError=' + (st2.lastError || '(无)');
       var box = $('fxDiag');
       if (box) box.textContent = txt;

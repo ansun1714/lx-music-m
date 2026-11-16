@@ -153,6 +153,27 @@
     return this._graphMounted;
   };
 
+  /* 直接把当前正在播放的 <audio> 接入音频图（不换 Blob）。
+   * 冷启动时 ctx/音效链还没就绪，_createEl 阶段挂不上；手势后 ensureMounted 成功，
+   * 这里补挂一次，避免一直停在原生旁路。跨域被污染导致静音时由 error/回退路径兜底。 */
+  AudioEngine.prototype.attachEl = function () {
+    if (this.mediaSrc || !this.el || !this.ctx) return false;
+    if (!this.wantGraph(this._lastRef)) return false;
+    if (!this.ensureMounted()) return false;
+    try {
+      this.mediaSrc = this.ctx.createMediaElementSource(this.el);
+      this.mediaSrc.connect(this.gain);
+      this.el.volume = 1;
+      dlog('audio', 'attachEl ok');
+      return true;
+    } catch (e) {
+      this.mediaSrc = null;
+      this._lastError = 'MediaElementSource 创建失败: ' + (e && e.message || e);
+      dlog('audio', this._lastError);
+      return false;
+    }
+  };
+
   /* 统一状态查询（P0-3 的判定依据）：不看「对象是否存在」，看上下文与挂载是否真的可用 */
   AudioEngine.prototype.isGraphBound = function () {
     return !!(this.mediaSrc && this.ctx && this.ctx.state !== 'closed' && this._graphMounted);
@@ -187,7 +208,8 @@
       lastError: this._lastError || '',
       ctxGen: this._ctxGen || 0,
       graphHost: this._graphUrl ? String(this._graphUrl).replace(/^https?:\/\//, '').split('/')[0] : '',
-      liteUrl: !!this._graphLite
+      liteUrl: !!this._graphLite,
+      blobPending: !!this._blobPending
     };
   };
 
@@ -552,9 +574,9 @@
       if (self._blobPending !== key) return;
       var fetchUrl = (m && m.url) || url;
       var headers = (m && m.headers) || ref.headers;
-      this._graphUrl = fetchUrl;
-      this._graphLite = !!(m && m.url);
-      dlog('audio', 'graph fetch lite=' + this._graphLite + ' host=' + String(fetchUrl).replace(/^https?:\/\//, '').split('/')[0]);
+      self._graphUrl = fetchUrl;
+      self._graphLite = !!(m && m.url);
+      dlog('audio', 'graph fetch lite=' + self._graphLite + ' host=' + String(fetchUrl).replace(/^https?:\/\//, '').split('/')[0]);
       self._fetchBytes(fetchUrl, headers, function (err, bytes) {
         if (self._blobPending !== key) return;             // 已经切歌，丢弃
         if (!err && bytes && typeof bytes.size === 'number' && !bytes.size) err = new Error('空音频');

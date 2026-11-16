@@ -131,7 +131,10 @@
     lastIdx = idx;
     var cur = ps[idx];
     if (cur) {
-      var top = cur.offsetTop - container.clientHeight * 0.58 + cur.offsetHeight / 2;
+      /* 用视口坐标换算，避免 offsetParent / 内边距导致定位整体偏移（真机高亮行偏上多行） */
+      var cRect = container.getBoundingClientRect();
+      var rRect = cur.getBoundingClientRect();
+      var top = container.scrollTop + (rRect.top - cRect.top) - container.clientHeight * 0.55 + cur.offsetHeight / 2;
       try { container.scrollTo({ top: Math.max(0, top), behavior: 'smooth' }); }
       catch (e) { container.scrollTop = Math.max(0, top); }
     }
