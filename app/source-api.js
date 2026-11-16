@@ -71,6 +71,7 @@
         statusMessage: statusMessage,
         headers: headers,
         body: full,
+        parts: parts && parts.length ? parts : null,
         __base64: !!isBinary
       };
       p.cb(null, resp, full);

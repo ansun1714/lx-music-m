@@ -185,7 +185,9 @@
       surroundOn: !!(st && st.enabled && st.surround),
       degraded: !!this._graphFallback,
       lastError: this._lastError || '',
-      ctxGen: this._ctxGen || 0
+      ctxGen: this._ctxGen || 0,
+      graphHost: this._graphUrl ? String(this._graphUrl).replace(/^https?:\/\//, '').split('/')[0] : '',
+      liteUrl: !!this._graphLite
     };
   };
 
@@ -270,6 +272,23 @@
   /* 把 base64 分片解码成 Blob parts（v3.13.3）：
    * 真机上几十 MB 的整串 base64 一次性 atob 会产生「巨大的二进制字符串 + 同样大的 Uint8Array」，
    * 叠上 Java 侧的分块串就有 OOM 风险。按 512KB 切片解码，每片只占一小块内存。 */
+  /* 每个原生分块是独立 Base64（各自带 = 填充），不能拼接后整体 atob，
+   * 否则内部填充会让 atob 抛 "not correctly encoded"。逐块解码再拼接。 */
+  AudioEngine.prototype._decodeB64Parts = function (parts, maxBytes) {
+    var out = [], total = 0;
+    (parts || []).forEach(function (p) {
+      p = String(p || '').replace(/\s/g, '');
+      if (!p) return;
+      var bin = atob(p);
+      total += bin.length;
+      if (maxBytes && total > maxBytes) throw new Error('文件过大（超过 ' + Math.floor(maxBytes / 1048576) + 'MB），已跳过音效');
+      var u8 = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+      out.push(u8);
+    });
+    return { parts: out, bytes: total };
+  };
+
   AudioEngine.prototype._b64ToParts = function (b64, maxBytes) {
     var SLICE = 524288;                                  // 必须是 4 的倍数
     var parts = [];
@@ -280,7 +299,7 @@
       total += bin.length;
       if (maxBytes && total > maxBytes) throw new Error('文件过大（超过 ' + Math.floor(maxBytes / 1048576) + 'MB），已跳过音效');
       var u8 = new Uint8Array(bin.length);
-      for (var i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+      for (var i = 0; i < u8.length; i++) u8[i] = bin.charCodeAt(i);
       parts.push(u8);
     }
     return { parts: parts, bytes: total };
@@ -298,9 +317,14 @@
         function (err, resp) {
           if (err || !resp) return cb(err || new Error('empty response'));
           if (resp.statusCode && resp.statusCode >= 400) return cb(new Error('HTTP ' + resp.statusCode));
-          if (!resp.__base64 || !resp.body) return cb(new Error('not binary'));
+          if (!resp.__base64 || (!resp.body && !resp.parts)) return cb(new Error('not binary'));
           try {
-            var got = this._b64ToParts(String(resp.body).replace(/\s/g, ''), MAXB);
+            var got;
+            if (resp.parts && resp.parts.length) {
+              got = this._decodeB64Parts(resp.parts, MAXB);
+            } else {
+              got = this._b64ToParts(String(resp.body).replace(/\s/g, ''), MAXB);
+            }
             cb(null, new Blob(got.parts, { type: 'audio/mpeg' }), got.bytes);
           } catch (e) { cb(e); }
         }.bind(this));
@@ -528,6 +552,9 @@
       if (self._blobPending !== key) return;
       var fetchUrl = (m && m.url) || url;
       var headers = (m && m.headers) || ref.headers;
+      this._graphUrl = fetchUrl;
+      this._graphLite = !!(m && m.url);
+      dlog('audio', 'graph fetch lite=' + this._graphLite + ' host=' + String(fetchUrl).replace(/^https?:\/\//, '').split('/')[0]);
       self._fetchBytes(fetchUrl, headers, function (err, bytes) {
         if (self._blobPending !== key) return;             // 已经切歌，丢弃
         if (!err && bytes && typeof bytes.size === 'number' && !bytes.size) err = new Error('空音频');

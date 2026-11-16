@@ -131,7 +131,7 @@
     lastIdx = idx;
     var cur = ps[idx];
     if (cur) {
-      var top = cur.offsetTop - container.clientHeight / 2 + cur.offsetHeight / 2;
+      var top = cur.offsetTop - container.clientHeight * 0.58 + cur.offsetHeight / 2;
       try { container.scrollTo({ top: Math.max(0, top), behavior: 'smooth' }); }
       catch (e) { container.scrollTop = Math.max(0, top); }
     }

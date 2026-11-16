@@ -544,7 +544,7 @@
     if (!chain.length) return platformLyric(track);
     var i = 0;
     function next() {
-      if (i >= chain.length) return Promise.resolve(null);
+      if (i >= chain.length) return platformLyric(track);
       var a = chain[i++];
       return askLyric(a, track).then(function (r) {
         if (r && r.lyric) { lyricCache[track.id] = r; return r; }
@@ -562,10 +562,7 @@
         });
       }).catch(function () { return next(); });
     }
-    /* 音源链路全失败时的兜底：平台自身的公开歌词接口。
-     * 真机上星海脚本对 wy 会直接回 null（缺 source 字段或脚本自身限制），
-     * 这时不该让用户看到「暂无歌词」。 */
-    return platformLyric(track).then(function (r) { return r || next(); });
+    return next();
   }
 
   function platformLyric(track) {
@@ -585,12 +582,20 @@
     }
     if (plat === 'kw') {
       var kwMid = (track._raw && track._raw.rid) || mid;
-      return LP.http('https://newlyric.kuwo.cn/newlyric.lrc?musicId=' + encodeURIComponent(kwMid),
+      /* newlyric.lrc 已被限制；走移动端 songinfoandlrc，lrclist 是 [{time,lineLyric}] */
+      return LP.httpJson('https://m.kuwo.cn/newh5/singles/songinfoandlrc?musicId=' + encodeURIComponent(kwMid),
         { headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10)', Referer: 'https://m.kuwo.cn/' } })
-        .then(function (r) {
-          var l = r && r.body && /\[[0-9]+:/.test(r.body) ? r.body : '';
-          diagLyric('平台内置/kw', !!l, l ? l.length + ' 字' : '返回空');
-          return l ? { lyric: String(l), tlyric: '' } : null;
+        .then(function (d) {
+          var list = d && (d.lrclist || (d.data && d.data.lrclist));
+          if (!list || !list.length) { diagLyric('平台内置/kw', false, '返回空'); return null; }
+          var lrc = list.map(function (x) {
+            var t = Number(x.time) || 0;
+            var mm = String(Math.floor(t / 60)).padStart(2, '0');
+            var ss = (t % 60).toFixed(2).padStart(5, '0');
+            return '[' + mm + ':' + ss + ']' + (x.lineLyric || '');
+          }).join('\n');
+          diagLyric('平台内置/kw', true, lrc.length + ' 字');
+          return { lyric: lrc, tlyric: '' };
         }).catch(function (e) { diagLyric('平台内置/kw', false, (e && e.message) || e); return null; });
     }
     if (plat === 'mg') {
@@ -601,6 +606,10 @@
           diagLyric('平台内置/mg', !!l, l ? l.length + ' 字' : '返回空');
           return l ? { lyric: String(l), tlyric: '' } : null;
         }).catch(function (e) { diagLyric('平台内置/mg', false, (e && e.message) || e); return null; });
+    }
+    if (plat === 'kg') {
+      diagLyric('平台内置/kg', false, '暂未实现 krc 解密');
+      return Promise.resolve(null);
     }
     return Promise.resolve(null);
   }

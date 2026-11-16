@@ -2225,6 +2225,7 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
         ' pos=' + (engine.position ? Math.round(engine.position() * 10) / 10 : '-') + 's' +
         '\n音效: enabled=' + snd2.enabled + ' preset=' + snd2.preset + ' reverb=' + snd2.reverb +
         ' surround=' + (!!snd2.surround) + '\neq=' + JSON.stringify(snd2.eq) +
+        '\ngraphHost=' + (st2.graphHost || '-') + ' lite=' + st2.liteUrl +
         '\nlastError=' + (st2.lastError || '(无)');
       var box = $('fxDiag');
       if (box) box.textContent = txt;
