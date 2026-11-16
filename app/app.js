@@ -1241,6 +1241,9 @@
   }
 
   function playFrom(id, ids) {
+    /* 在手势同步栈里先建 AudioContext：ArkWeb 对「脱离手势后创建/恢复 AudioContext」很敏感，
+     * 等异步取到播放地址再建，就会出现 ctx 一直 none、音效永不生效。 */
+    try { if (engine.prepareGraph) engine.prepareGraph(); } catch (e) {}
     var tr = D.byId(id);
     if (!tr) {
       tr = trackFromDownload(id);
@@ -2211,12 +2214,13 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
         if (isFinite(seekTo)) engine.seek(seekTo);
         return;
       }
-      case 'fx-toggle': { if (Snd) Snd.setEnabled(!!node.checked); syncAudioGraph(); renderOverlay(); return; }
+      case 'fx-toggle': { if (Snd) Snd.setEnabled(!!node.checked); try { if (engine.prepareGraph) engine.prepareGraph(); } catch (e) {} syncAudioGraph(); renderOverlay(); return; }
     case 'fx-diag': {
       var st2 = (engine.getAudioStatus ? engine.getAudioStatus() : {});
       var snd2 = Snd ? Snd.state() : {};
-      var txt = 'ctx=' + st2.ctxState + ' bound=' + st2.bound + ' healthy=' + st2.graphHealthy +
-        ' media=' + st2.mediaBound + ' mounted=' + st2.mounted + ' gen=' + st2.ctxGen +
+      var txt = 'ctx=' + st2.ctxState + ' ac=' + st2.acAvailable + ' snd=' + st2.soundLoaded +
+        ' bound=' + st2.bound + ' healthy=' + st2.graphHealthy +
+        '\nmedia=' + st2.mediaBound + ' mounted=' + st2.mounted + ' gen=' + st2.ctxGen +
         '\nmode=' + (st2.mode || '-') + ' el=' + (!!engine.el) + ' playing=' + (!!engine.playing) +
         ' pos=' + (engine.position ? Math.round(engine.position() * 10) / 10 : '-') + 's' +
         '\n音效: enabled=' + snd2.enabled + ' preset=' + snd2.preset + ' reverb=' + snd2.reverb +
@@ -2230,7 +2234,7 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
       return;
     }
       case 'fx-surround': { if (Snd) Snd.setSurround(!!node.checked); syncAudioGraph(); renderOverlay(); return; }
-      case 'fx-preset': { if (Snd) Snd.setPreset(id); syncAudioGraph(); renderOverlay(); return; }
+      case 'fx-preset': { if (Snd) Snd.setPreset(id); try { if (engine.prepareGraph) engine.prepareGraph(); } catch (e) {} syncAudioGraph(); renderOverlay(); return; }
       case 'fx-reverb': { if (Snd) Snd.setReverb(id); syncAudioGraph(); renderOverlay(); return; }
       case 'fx-reset': { if (Snd) Snd.reset(); syncAudioGraph(); renderOverlay(); toast('已重置音效'); return; }
       case 'dl-retry-failed': {

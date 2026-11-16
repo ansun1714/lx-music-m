@@ -107,6 +107,27 @@
 
   /* 建立/修复 音效链：gain → EQ → 干湿 → 环绕 → destination。
    * 事务式：LXSound.mount() 内部整体建好才接线，失败时由这里直连 destination 兜底。 */
+  /* 在用户手势的同步栈里预先建好 AudioContext 并接图。
+   * ArkWeb/WebView 对「必须在手势内创建/恢复 AudioContext」很敏感；等异步取完播放地址再建，
+   * 往往已经脱离手势上下文，表现就是 ctx 一直是 none、音效永不生效。 */
+  AudioEngine.prototype.prepareGraph = function () {
+    var why = '';
+    try {
+      if (!this.graphEnabled()) why = '音效未开启';
+      else {
+        this._ensureCtx();
+        if (!this.ctx) why = 'AudioContext 创建失败';
+        else if (this.ctx.state === 'suspended' && this.ctx.resume) {
+          var p = this.ctx.resume();
+          if (p && p.catch) p.catch(function (e) { dlog('audio', 'resume reject: ' + (e && e.message || e)); });
+        }
+        if (this.ctx) this.ensureMounted();
+      }
+    } catch (e) { why = String(e && e.message || e); }
+    dlog('audio', 'prepareGraph ' + (why ? 'fail(' + why + ')' : 'ok ctx=' + (this.ctx && this.ctx.state) + ' mounted=' + this._graphMounted));
+    return this.ctxAlive();
+  };
+
   AudioEngine.prototype.ensureMounted = function () {
     if (!this.ctx || this.ctx.state === 'closed' || !this.gain) return false;
     var S = window.LXSound;
@@ -153,6 +174,8 @@
       mode: this.mode,
       ctxAlive: this.ctxAlive(),
       ctxState: this.ctx ? this.ctx.state : 'none',
+      acAvailable: !!(window.AudioContext || window.webkitAudioContext),
+      soundLoaded: !!(window.LXSound && typeof window.LXSound.state === 'function'),
       mediaBound: !!this.mediaSrc,
       mounted: !!this._graphMounted,
       bound: this.isGraphBound(),
