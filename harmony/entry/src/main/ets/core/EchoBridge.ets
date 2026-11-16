@@ -178,6 +178,11 @@ export class EchoBridge {
     return '';
   }
 
+  /** JS 侧诊断日志（音效图/歌词链路），直接落 hilog，便于 hdc 抓取 */
+  jsLog(tag: string, msg: string): void {
+    hilog.info(DOMAIN, TAG, 'JS[%{public}s] %{public}s', String(tag), String(msg));
+  }
+
   /** 把沙箱里的已下载文件变成页面可播地址 */
   localMediaUrl(relPath: string): string {
     if (relPath === null || relPath === undefined || relPath.length === 0) {

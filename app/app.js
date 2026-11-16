@@ -8,6 +8,12 @@
 
   var D = window.LXData, DL = window.LXDownload, T = window.LXTheme, SR = window.LXSources;
   var Q = window.LXQuality, Snd = window.LXSound, Lyr = window.LXLyr;
+  /* 真机诊断日志：HAP 走原生桥写 hilog（A00D00 / LXMusicBridge），浏览器只看 console */
+  window.LXdlog = function (tag, msg) {
+    var line = '[' + tag + '] ' + msg;
+    try { if (window.EchoBridge && typeof EchoBridge.jsLog === 'function') EchoBridge.jsLog(tag, String(msg)); } catch (e) {}
+    try { console.log('[LXDIAG]' + line); } catch (e) {}
+  };
   var KEY = 'lx_state_v1';
   var ICON = {
     nav_search: 'search-2', nav_songlist: 'album', nav_top: 'leaderboard',
@@ -1040,6 +1046,8 @@
       }).join('') + '</div></div>';
     h += '<div class="fx-row"><div class="fx-label"><b>3D 环绕</b><span>声音绕听者缓慢旋转</span></div>' +
       '<label class="switch"><input type="checkbox" data-act="fx-surround"' + (st.surround ? ' checked' : '') + '><i></i></label></div>';
+    h += '<div class="fx-row"><div class="fx-label"><b>音频图自检</b><span id="fxDiag">点右侧按钮查看 audio 链路真实状态</span></div>' +
+      '<button class="btn sm" data-act="fx-diag">检测</button></div>';
     h += '<div class="fx-sec"><div class="fx-title">均衡器 <em>±12 dB</em></div>' +
       Snd.FREQS.map(function (f, i) {
         var v = st.eq[i];
@@ -2204,6 +2212,20 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
         return;
       }
       case 'fx-toggle': { if (Snd) Snd.setEnabled(!!node.checked); syncAudioGraph(); renderOverlay(); return; }
+    case 'fx-diag': {
+      var st2 = (engine.getAudioStatus ? engine.getAudioStatus() : {});
+      var snd2 = Snd ? Snd.state() : {};
+      var txt = 'ctx=' + st2.ctxState + ' bound=' + st2.bound + ' healthy=' + st2.graphHealthy +
+        ' media=' + st2.mediaBound + ' mounted=' + st2.mounted + ' gen=' + st2.ctxGen +
+        '\n音效: enabled=' + snd2.enabled + ' preset=' + snd2.preset + ' reverb=' + snd2.reverb +
+        ' surround=' + (!!snd2.surround) + '\neq=' + JSON.stringify(snd2.eq) +
+        '\nlastError=' + (st2.lastError || '(无)');
+      var box = $('fxDiag');
+      if (box) box.textContent = txt;
+      if (snd2.enabled && !st2.bound) toast('音效已开但未接入音频图：' + (st2.lastError || '原因见上方'));
+      if (window.LXdlog) window.LXdlog('audio', txt.replace(/\n/g, ' | '));
+      return;
+    }
       case 'fx-surround': { if (Snd) Snd.setSurround(!!node.checked); syncAudioGraph(); renderOverlay(); return; }
       case 'fx-preset': { if (Snd) Snd.setPreset(id); syncAudioGraph(); renderOverlay(); return; }
       case 'fx-reverb': { if (Snd) Snd.setReverb(id); syncAudioGraph(); renderOverlay(); return; }

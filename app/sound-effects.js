@@ -226,7 +226,7 @@
   }
 
   function apply() {
-    if (!mounted) return;
+    if (!mounted || !ctx || ctx.state === 'closed') return;
     var t = ctx.currentTime;
     for (var i = 0; i < eqNodes.length; i++) {
       var v = state.enabled ? state.eq[i] : 0;

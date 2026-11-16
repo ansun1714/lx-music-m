@@ -95,7 +95,16 @@
     lastIdx = -1;
     lastTrack = trackId || '';
     if (!parsed || (!parsed.lines.length && !parsed.plain.length)) {
-      container.innerHTML = '<p class="lc-empty">暂无歌词（音源脚本实现 lyric 动作后可显示）</p>';
+      var why = '';
+      try {
+        var SR = window.LXSources;
+        var dg = SR && typeof SR.lyricDiag === 'function' ? SR.lyricDiag() : [];
+        if (dg && dg.length) {
+          var last = dg[dg.length - 1];
+          why = '<span class="lc-why">（' + esc(last.src + ': ' + (last.ok ? '内容为空' : last.detail)) + '）</span>';
+        }
+      } catch (e) {}
+      container.innerHTML = '<p class="lc-empty">暂无歌词' + why + '</p>';
       return;
     }
     if (!parsed.hasTime) {

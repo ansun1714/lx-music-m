@@ -495,6 +495,13 @@
    * 注意有些音源（如星海音乐源）只在取过一次播放地址后才有歌词缓存，
    * 因此第一次拿不到时会补一次 musicUrl 解析再问，并缓存结果。 */
   var lyricCache = {};
+  var lyricDiag = [];          // 歌词链路诊断：哪个音源、成功与否、条数/原因（真机排查用）
+
+  function diagLyric(src, ok, detail) {
+    lyricDiag.push({ src: src, ok: !!ok, detail: String(detail || '').slice(0, 120) });
+    lyricDiag = lyricDiag.slice(-12);
+    if (window.LXdlog) window.LXdlog('lyric', src + ' => ' + (ok ? 'ok ' + detail : 'fail ' + detail));
+  }
 
   function normalizeLyric(res) {
     if (!res) return null;
@@ -508,7 +515,14 @@
     var sk = track.apiSource ||
       (track.platform && a.sources && a.sources[track.platform] ? track.platform : sourceKeys(a, 'lyric')[0]);
     return API.invoke(runtimes[a.id], sk, 'lyric',
-      { musicInfo: rawMusicInfo(track) }, 15000).then(normalizeLyric).catch(function () { return null; });
+      { musicInfo: rawMusicInfo(track) }, 15000).then(function (res) {
+        var one = normalizeLyric(res);
+        diagLyric(a.name + '/' + sk, !!one, one ? one.lyric.length + ' 字' : '返回空（' + JSON.stringify(res).slice(0, 80) + '）');
+        return one;
+      }).catch(function (e) {
+        diagLyric(a.name + '/' + sk, false, (e && e.message) || e);
+        return null;
+      });
   }
 
   function lyric(track) {
@@ -866,6 +880,7 @@
     platformProviders: platformProviders, forPlatform: forPlatform, verifyPlatform: verifyPlatform,
     fetchDownload: fetchDownload, fetchMedia: function (track, quality) { return resolveMedia(track, quality, 'download'); },
     playableUrl: playableUrl, lyric: lyric,
+    lyricDiag: function () { return lyricDiag.slice(); },
     clearLyric: function (id) { if (id) delete lyricCache[id]; else lyricCache = {}; },
     mediaToBlob: mediaToBlob, mimeOf: mimeOf, extOf: extOf,
     normalizeTrack: normalizeTrack, normalizeMedia: normalizeMedia,

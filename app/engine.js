@@ -8,6 +8,10 @@
 (function () {
   'use strict';
 
+  function dlog(tag, msg) {
+    try { if (window.LXdlog) window.LXdlog(tag, msg); } catch (e) {}
+  }
+
   /* 原生媒体代理（v3.9.0）
    * 音源返回的音频大多没有任何 CORS 响应头：<audio> 一旦设置 crossOrigin 再接进 Web Audio，
    * 浏览器会判定为「跨域污染」直接静音，真机上的表现就是「两个平台有音效、另外的平台提示
@@ -124,6 +128,7 @@
       /* 音效链不可用时保证基础出声（旁路，不是 error） */
       try { this.gain.connect(this.ctx.destination); } catch (e) {}
     }
+    dlog('audio', 'ensureMounted=' + mounted + ' ctx=' + this.ctx.state + ' err=' + (this._lastError || '-'));
     return this._graphMounted;
   };
 
@@ -356,6 +361,7 @@
       } catch (e) {
         this.mediaSrc = null;
         this._lastError = 'MediaElementSource 创建失败: ' + (e && e.message || e);
+        dlog('audio', 'createMediaElementSource fail: ' + this._lastError);
         nx.volume = this.volume;
       }
     } else {
@@ -386,6 +392,7 @@
       if (!err && bytes && typeof bytes.size === 'number' && !bytes.size) err = new Error('空音频');
       if (err || !bytes) {
         if (self.onGraphUnavailable) self.onGraphUnavailable(err && err.message);
+        dlog('audio', 'blob fetch fail: ' + (err && err.message));
         return;
       }
       var mime = (ref.mime || self.mediaMime || 'audio/mpeg');
@@ -468,6 +475,7 @@
       } catch (e) {
         this.mediaSrc = null;
         this._lastError = 'MediaElementSource 创建失败: ' + (e && e.message || e);
+        dlog('audio', 'createMediaElementSource fail(el): ' + this._lastError);
         el.volume = this.volume;
       }
     } else {
