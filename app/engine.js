@@ -334,6 +334,91 @@
     return true;
   };
 
+  /* ArkWeb 没有 createMediaElementSource 时的退路：
+   * 用原生桥把音频字节取回来 → decodeAudioData → 直接接进音效链（gain→EQ→…）播放。
+   * 代价是整段解码进内存（上限 24MB），换来音效在任何 WebView 上都能真实生效。 */
+  AudioEngine.prototype._playViaBuffer = function (url, ref, startAt, autoplay) {
+    var self = this;
+    url = String(url || '');
+    if (!url) return false;
+    this._ensureCtx();
+    if (!this.ctx || typeof this.ctx.decodeAudioData !== 'function') {
+      this._lastError = 'decodeAudioData 不可用';
+      dlog('audio', this._lastError);
+      return false;
+    }
+    dlog('audio', 'buffer fallback: ' + url.slice(0, 80));
+    function toArrayBuffer(b, cb) {
+      if (b && typeof b.arrayBuffer === 'function') {
+        b.arrayBuffer().then(cb, function () { cb(new ArrayBuffer(0)); });
+        return;
+      }
+      try {
+        var fr = new FileReader();
+        fr.onload = function () { cb(fr.result); };
+        fr.onerror = function () { cb(new ArrayBuffer(0)); };
+        fr.readAsArrayBuffer(b);
+      } catch (e) { cb(new ArrayBuffer(0)); }
+    }
+    function decode(blob) {
+      if (!blob || typeof blob.size === 'number' && !blob.size) {
+        self._lastError = '音频字节为空';
+        if (self.onError) self.onError('音频加载失败');
+        return;
+      }
+      var got = false;
+      function ok(buf) {
+        if (got) return; got = true;
+        self._applyBuffer(buf, ref, startAt, autoplay);
+      }
+      function fail(e) {
+        if (got) return; got = true;
+        self._lastError = '解码失败: ' + (e && e.message || e);
+        dlog('audio', self._lastError);
+        if (self.onError) self.onError('音频解码失败（该格式可能不受支持）');
+      }
+      toArrayBuffer(blob, function (ab) {
+        try {
+          var p = self.ctx.decodeAudioData(ab, ok, fail);
+          if (p && typeof p.then === 'function') p.then(ok, fail);
+        } catch (e) { fail(e); }
+      });
+    }
+    if (/^file:/i.test(url) && typeof window.fetch === 'function') {
+      window.fetch(url).then(function (r) { return r.blob(); }).then(decode).catch(function (e) {
+        self._lastError = '本地文件读取失败: ' + (e && e.message || e);
+        if (self.onError) self.onError('本地文件读取失败（可能未保存到设备或已被删除）');
+      });
+      return true;
+    }
+    this._fetchBytes(url, ref && ref.headers, function (err, bytes) {
+      if (err || !bytes) {
+        self._lastError = '音效取字节失败: ' + (err && err.message);
+        dlog('audio', self._lastError);
+        if (self.onError) self.onError('音频加载失败');
+        return;
+      }
+      decode(bytes instanceof Blob ? bytes : new Blob([bytes], { type: (ref && ref.mime) || 'audio/mpeg' }));
+    });
+    return true;
+  };
+
+  AudioEngine.prototype._applyBuffer = function (buf, ref, startAt, autoplay) {
+    if (!buf) return;
+    this.mode = 'buffer';
+    this._rawUrl = (ref && (ref.origin || ref.url)) || this._rawUrl;
+    this._lastRef = ref;
+    this.buffer = buf;
+    this.duration = buf.duration || this.duration;
+    this.offset = Math.max(0, Number(startAt) || 0);
+    this.playing = false;
+    this.mediaSrc = null;
+    this.el = null;
+    dlog('audio', 'buffer ready ' + this.duration.toFixed(1) + 's');
+    if (autoplay) this.play();
+    else if (this.onTick) this.onTick(this.offset, this.duration);
+  };
+
   /* 用已就绪的 <audio> 接管音频图（不再新建元素） */
   AudioEngine.prototype._cloneFrom = function (nx, url, ref, startAt, autoplay) {
     var self = this;
@@ -363,6 +448,9 @@
         this._lastError = 'MediaElementSource 创建失败: ' + (e && e.message || e);
         dlog('audio', 'createMediaElementSource fail: ' + this._lastError);
         nx.volume = this.volume;
+        try { nx.pause(); nx.removeAttribute('src'); nx.load(); } catch (e2) {}
+        this.el = null;
+        if (this._playViaBuffer(ref.origin || url, ref, startAt, autoplay)) return;
       }
     } else {
       this.mediaSrc = null;
@@ -477,6 +565,10 @@
         this._lastError = 'MediaElementSource 创建失败: ' + (e && e.message || e);
         dlog('audio', 'createMediaElementSource fail(el): ' + this._lastError);
         el.volume = this.volume;
+        /* ArkWeb 若没有 createMediaElementSource，退回「解码成 AudioBuffer 再走音效链」 */
+        try { el.pause(); el.removeAttribute('src'); el.load(); } catch (e2) {}
+        this.el = null;
+        if (this._playViaBuffer(rawUrl, ref, startAt, autoplay)) return;
       }
     } else {
       this.mediaSrc = null;

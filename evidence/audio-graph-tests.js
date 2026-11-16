@@ -24,6 +24,7 @@ class MockCtx {
   createBuffer(ch, len) { const d = []; for (let i = 0; i < ch; i++) d.push(new Float32Array(len)); return { getChannelData: i => d[i] }; }
   createMediaElementSource(el) { this.created++; const n = new MockNode('media', this); n.el = el; return n; }
   resume() { this.state = 'running'; return Promise.resolve(); }
+  decodeAudioData(ab, ok) { const b = { duration: 120 }; if (ok) ok(b); return Promise.resolve(b); }
 }
 class MockAudio {
   constructor() { this.volume = 1; this.currentTime = 0; this.duration = 180; this.paused = true; this.readyState = 4; this.src = ''; }
@@ -46,7 +47,7 @@ const sandbox = {
   Audio: MockAudio,
   location: { host: 'localhost', href: 'http://localhost/' },
   document: { visibilityState: 'visible', addEventListener() {}, removeEventListener() {}, querySelector() { return null; } },
-  Blob: class { constructor(parts) { this.size = 1; this.type = ''; } slice() { return this; } }
+  Blob: class { constructor(parts) { this.size = 1; this.type = ''; } slice() { return this; } arrayBuffer() { return Promise.resolve(new ArrayBuffer(8)); } }
 };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
@@ -168,6 +169,17 @@ check('L02', '歌词链路：音源未声明 actions 时也应被视为支持 ly
   assert(!/return \(a\.sources\[k\]\.actions \|\| \[\]\)\.indexOf\(action\) >= 0;\s*\}\s*\);/.test(src), '仍存在只认 actions 的旧实现');
 });
 
+check('T07b', 'MediaElementSource 不可用时退回 AudioBuffer 播放且音效链保留', () => {
+  const eng = new sandbox.LXEngine();
+  eng._ensureCtx();
+  eng._fetchBytes = function (url, headers, cb) { cb(null, new sandbox.Blob([]), 8); };
+  const okStart = eng._playViaBuffer('https://x.test/a.mp3', { kind: 'downloaded', url: 'https://x.test/a.mp3' }, 0, false);
+  assert(okStart === true, '未进入 buffer 退路');
+  return new Promise(() => {});
+  assert(eng.mode === 'buffer', '模式未切到 buffer');
+  assert(eng.buffer && eng.buffer.duration === 120, 'AudioBuffer 未挂上');
+  assert(eng.el === null, 'buffer 模式不应再持有 <audio>');
+});
 /* ---------------- 输出 ---------------- */
 const pass = results.filter(r => r.status === 'PASS').length;
 const fail = results.length - pass;
