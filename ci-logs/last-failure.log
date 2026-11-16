@@ -20,7 +20,7 @@ android-34
 build.py 3.13.7 (24) / manifest 3.13.7 (24)
 == 生成单文件版 ==
 生成 /home/runner/work/lx-music-m/lx-music-m/app/standalone.html
-  大小 449010 B
+  大小 450809 B
   CSS 3 个，脚本 13 个，字体 base64 17484 字符
   剩余外部引用: 无
 == 逻辑冒烟 ==
@@ -168,7 +168,6 @@ build.py 3.13.7 (24) / manifest 3.13.7 (24)
   PASS  音质采样率 6000/8000/11025
   PASS  入队 1 首
   PASS  重复入队被去重
-[LXDIAG][lyric] 平台内置/kw => fail 返回空
 [LXDIAG][lyric] 测试源/kw => ok 11 字
   PASS  任务完成 state=done
   PASS  进度 100%
