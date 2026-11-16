@@ -266,6 +266,8 @@
     if (!out.musicId && track && track.songmid) out.musicId = track.songmid;
     if (!out.albumName && track && track.album) out.albumName = track.album;
     if (!out.interval && track && track.duration) out.interval = String(track.duration);
+    if (!out.rid && track && track.songmid) out.rid = track.songmid;
+    if (!out.hash && track && track._raw && track._raw.hash) out.hash = track._raw.hash;
     return out;
   }
 
@@ -582,13 +584,23 @@
         }).catch(function (e) { diagLyric('平台内置/wy', false, (e && e.message) || e); return null; });
     }
     if (plat === 'kw') {
-      return LP.http('https://newlyric.kuwo.cn/newlyric.lrc?musicId=' + encodeURIComponent(mid),
-        { headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10)' } })
+      var kwMid = (track._raw && track._raw.rid) || mid;
+      return LP.http('https://newlyric.kuwo.cn/newlyric.lrc?musicId=' + encodeURIComponent(kwMid),
+        { headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10)', Referer: 'https://m.kuwo.cn/' } })
         .then(function (r) {
           var l = r && r.body && /\[[0-9]+:/.test(r.body) ? r.body : '';
           diagLyric('平台内置/kw', !!l, l ? l.length + ' 字' : '返回空');
           return l ? { lyric: String(l), tlyric: '' } : null;
         }).catch(function (e) { diagLyric('平台内置/kw', false, (e && e.message) || e); return null; });
+    }
+    if (plat === 'mg') {
+      return LP.httpJson('https://music.migu.cn/v3/api/music/audioPlayer/getLyric?copyrightId=' + encodeURIComponent(mid),
+        { headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10)', Referer: 'https://music.migu.cn/' } })
+        .then(function (d) {
+          var l = (d && (d.lyric || (d.data && d.data.lyric))) || '';
+          diagLyric('平台内置/mg', !!l, l ? l.length + ' 字' : '返回空');
+          return l ? { lyric: String(l), tlyric: '' } : null;
+        }).catch(function (e) { diagLyric('平台内置/mg', false, (e && e.message) || e); return null; });
     }
     return Promise.resolve(null);
   }

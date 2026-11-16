@@ -514,31 +514,46 @@
     var key = url;
     var tid = this.track ? String(this.track.id) : '';
     this._blobPending = key;
-    this._fetchBytes(url, ref.headers, function (err, bytes) {
-      if (self._blobPending !== key) return;             // 已经切歌，丢弃
-      if (!err && bytes && typeof bytes.size === 'number' && !bytes.size) err = new Error('空音频');
-      if (err || !bytes) {
-        self._lastError = '音效取字节失败: ' + (err && err.message);
-        dlog('audio', self._lastError);
-        if (self._playViaBuffer(url, ref, self.position(), self.playing)) return;
-        if (self.onGraphUnavailable) self.onGraphUnavailable(err && err.message);
-        return;
-      }
-      var mime = (ref.mime || self.mediaMime || 'audio/mpeg');
-      var blob;
-      try {
-        /* _fetchBytes 现在直接给 Blob（分片解码，避免大文件 OOM）；兼容旧返回 Uint8Array 的情况 */
-        blob = (bytes instanceof Blob) ? bytes : new Blob([bytes], { type: mime });
-        if (blob.type !== mime && blob.slice) blob = blob.slice(0, blob.size, mime);
-      } catch (e) {
-        if (self.onGraphUnavailable) self.onGraphUnavailable('blob 创建失败');
-        return;
-      }
-      var burl = URL.createObjectURL(blob);
-      self._cacheBlob(key, mime, burl);
-      if (self.track && String(self.track.id) !== tid) return;
-      var p = self.position(), w = self.playing;
-      self._swapToGraphable(burl, { kind: 'stream', url: burl, origin: key, mime: mime, blob: true }, p, w);
+    /* 音效图只需要能解码的音频：FLAC/高码率整段 >24MB 会被原生侧直接拒掉。
+     * 先让音源另取一条 128k 播放地址（体积约 3~5MB），取不到再用原地址。 */
+    var SR = window.LXSources;
+    var lite = null;
+    if (SR && typeof SR.resolveMedia === 'function' && this.track) {
+      lite = SR.resolveMedia(this.track, '128k', 'musicUrl')
+        .then(function (m) { return (m && m.url) ? m : null; }).catch(function () { return null; });
+    } else {
+      lite = Promise.resolve(null);
+    }
+    lite.then(function (m) {
+      if (self._blobPending !== key) return;
+      var fetchUrl = (m && m.url) || url;
+      var headers = (m && m.headers) || ref.headers;
+      self._fetchBytes(fetchUrl, headers, function (err, bytes) {
+        if (self._blobPending !== key) return;             // 已经切歌，丢弃
+        if (!err && bytes && typeof bytes.size === 'number' && !bytes.size) err = new Error('空音频');
+        if (err || !bytes) {
+          self._lastError = '音效取字节失败: ' + (err && err.message);
+          dlog('audio', self._lastError);
+          if (self._playViaBuffer(fetchUrl, ref, self.position(), self.playing)) return;
+          if (self.onGraphUnavailable) self.onGraphUnavailable(err && err.message);
+          return;
+        }
+        var mime = (m && m.mime) || (ref.mime || self.mediaMime || 'audio/mpeg');
+        var blob;
+        try {
+          blob = (bytes instanceof Blob) ? bytes : new Blob([bytes], { type: mime });
+          if (blob.type !== mime && blob.slice) blob = blob.slice(0, blob.size, mime);
+        } catch (e) {
+          self._lastError = 'blob 创建失败: ' + (e && e.message);
+          if (self.onGraphUnavailable) self.onGraphUnavailable('blob 创建失败');
+          return;
+        }
+        var burl = URL.createObjectURL(blob);
+        self._cacheBlob(key, mime, burl);
+        if (self.track && String(self.track.id) !== tid) return;
+        var p = self.position(), w = self.playing;
+        self._swapToGraphable(burl, { kind: 'stream', url: burl, origin: key, mime: mime, blob: true }, p, w);
+      });
     });
     return true;
   };
