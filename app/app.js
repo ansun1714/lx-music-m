@@ -2217,12 +2217,15 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
       var snd2 = Snd ? Snd.state() : {};
       var txt = 'ctx=' + st2.ctxState + ' bound=' + st2.bound + ' healthy=' + st2.graphHealthy +
         ' media=' + st2.mediaBound + ' mounted=' + st2.mounted + ' gen=' + st2.ctxGen +
+        '\nmode=' + (st2.mode || '-') + ' el=' + (!!engine.el) + ' playing=' + (!!engine.playing) +
+        ' pos=' + (engine.position ? Math.round(engine.position() * 10) / 10 : '-') + 's' +
         '\n音效: enabled=' + snd2.enabled + ' preset=' + snd2.preset + ' reverb=' + snd2.reverb +
         ' surround=' + (!!snd2.surround) + '\neq=' + JSON.stringify(snd2.eq) +
         '\nlastError=' + (st2.lastError || '(无)');
       var box = $('fxDiag');
       if (box) box.textContent = txt;
-      if (snd2.enabled && !st2.bound) toast('音效已开但未接入音频图：' + (st2.lastError || '原因见上方'));
+      if (!engine.el && !engine.playing) toast('当前没有播放中的歌曲：先播一首，再点检测');
+      else if (snd2.enabled && !st2.bound) toast('音效已开但未接入音频图：' + (st2.lastError || '原因见上方'));
       if (window.LXdlog) window.LXdlog('audio', txt.replace(/\n/g, ' | '));
       return;
     }
