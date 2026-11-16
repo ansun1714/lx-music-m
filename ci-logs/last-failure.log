@@ -1,67 +1,544 @@
-===== ci-logs/hvigor.log =====
--rw-r--r-- 1 runner runner 15M Nov 15 12:51 .hvigor-pkgs/ohos-hvigor-5.19.8.tgz
--rw-r--r-- 1 runner runner 28M Nov 15 12:51 .hvigor-pkgs/ohos-hvigor-ohos-plugin-5.19.8.tgz
-hvigor 就绪
-===== ci-logs/hvigor-build.log =====
-> hvigor [32mFinished :entry:clean... after 1 ms [39m
-> hvigor [32mFinished :entry:default@PreBuild... after 135 ms [39m
-> hvigor [32mFinished :entry:default@CreateModuleInfo... after 1 ms [39m
-> hvigor [32mFinished :entry:default@GenerateMetadata... after 2 ms [39m
-> hvigor [32mFinished :entry:default@ConfigureCmake... after 1 ms [39m
-> hvigor [32mFinished :entry:default@MergeProfile... after 2 ms [39m
-> hvigor [32mFinished :entry:default@CreateBuildProfile... after 1 ms [39m
-> hvigor [32mFinished :entry:default@PreCheckSyscap... after 1 ms [39m
-> hvigor [32mFinished :entry:default@GeneratePkgContextInfo... after 7 ms [39m
-> hvigor [32mFinished :entry:default@ProcessIntegratedHsp... after 2 ms [39m
-> hvigor [32mFinished :entry:default@BuildNativeWithCmake... after 2 ms [39m
-> hvigor [32mFinished :entry:default@MakePackInfo... after 2 ms [39m
-> hvigor [32mFinished :entry:default@ProcessProfile... after 51 ms [39m
-> hvigor [32mFinished :entry:default@ProcessRouterMap... after 2 ms [39m
-> hvigor [32mFinished :entry:default@ProcessStartupConfig... after 1 ms [39m
-> hvigor [32mFinished :entry:default@BuildNativeWithNinja... after 1 ms [39m
-> hvigor [32mFinished :entry:default@ProcessResource... after 2 ms [39m
-> hvigor [32mFinished :entry:default@GenerateLoaderJson... after 3 ms [39m
-> hvigor [32mFinished :entry:default@ProcessLibs... after 4 ms [39m
-> hvigor [32mFinished :entry:default@CompileResource... after 62 ms [39m
-> hvigor [32mFinished :entry:default@DoNativeStrip... after 5 ms [39m
-> hvigor [32mFinished :entry:default@BuildJS... after 1 ms [39m
-> hvigor [32mFinished :entry:default@SyscapTransform... after 17 ms [39m
-> hvigor [91mERROR: Failed :entry:default@CompileArkTS... [39m
-> hvigor [91mERROR: ArkTS Compiler Error
-[33m1 WARN: [33m[33mArkTS:WARN: For details about ArkTS syntax errors, see FAQs[39m[39m
-[33m2 WARN: [33m[33mArkTS:WARN File: /home/runner/work/lx-music-m/lx-music-m/harmony/entry/src/main/ets/core/EchoBridge.ets:665:10
- The system capacity of this api 'selectMode' is not supported on all devices
-[39m[39m
-[33m3 WARN: [33m[33mArkTS:WARN File: /home/runner/work/lx-music-m/lx-music-m/harmony/entry/src/main/ets/core/EchoBridge.ets:665:30
- The system capacity of this api 'DocumentSelectMode' is not supported on all devices
-[39m[39m
-[33m4 WARN: [33m[33mArkTS:WARN File: /home/runner/work/lx-music-m/lx-music-m/harmony/entry/src/main/ets/core/EchoBridge.ets:665:49
- The system capacity of this api 'FOLDER' is not supported on all devices
-[39m[39m
-[33m5 WARN: [33m[33mArkTS:WARN File: /home/runner/work/lx-music-m/lx-music-m/harmony/entry/src/main/ets/core/EchoBridge.ets:679:17
- The system capacity of this api 'persistPermission' is not supported on all devices
-[39m[39m
-[33m6 WARN: [33m[33mArkTS:WARN File: /home/runner/work/lx-music-m/lx-music-m/harmony/entry/src/main/ets/core/EchoBridge.ets:679:73
- The system capacity of this api 'OperationMode' is not supported on all devices
-[39m[39m
-[33m7 WARN: [33m[33mArkTS:WARN File: /home/runner/work/lx-music-m/lx-music-m/harmony/entry/src/main/ets/core/EchoBridge.ets:724:17
- The system capacity of this api 'activatePermission' is not supported on all devices
-[39m[39m
-[33m8 WARN: [33m[33mArkTS:WARN File: /home/runner/work/lx-music-m/lx-music-m/harmony/entry/src/main/ets/core/EchoBridge.ets:724:74
- The system capacity of this api 'OperationMode' is not supported on all devices
-[39m[39m
-[31m1 ERROR: [31m[31mArkTS:ERROR File: /home/runner/work/lx-music-m/lx-music-m/harmony/entry/src/main/ets/core/EchoBridge.ets:666:73
- Argument of type 'UIAbilityContext | null' is not assignable to parameter of type 'Context'.
-  Type 'null' is not assignable to type 'Context'.
-[39m
-[39m
-[31m2 ERROR: [31m[31mArkTS:ERROR File: /home/runner/work/lx-music-m/lx-music-m/harmony/entry/src/main/ets/core/EchoBridge.ets:679:87
- Property 'READ_WRITE' does not exist on type 'typeof OperationMode'.
-[39m
-[39m
-[31m3 ERROR: [31m[31mArkTS:ERROR File: /home/runner/work/lx-music-m/lx-music-m/harmony/entry/src/main/ets/core/EchoBridge.ets:724:88
- Property 'READ_WRITE' does not exist on type 'typeof OperationMode'.
-[39m
-[39m
-[31mCOMPILE RESULT:FAIL {ERROR:4 WARN:8}[39m[39m
-> hvigor [91mERROR: BUILD FAILED in 6 s 924 ms [39m
+== 环境 ==
+openjdk version "21.0.13" 2026-10-20 LTS
+OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS)
+v20.20.2
+Python 3.14.4
+ANDROID_SDK_ROOT=/home/runner/work/_temp/android-sdk
+== 下载 cmdline-tools ==
+12.0
+
+== 接受许可 + 安装组件 ==
+yes: standard output: Broken pipe
+Loading package information...                                                  Loading local repository...                                                     [                                       ] 3% Loading local repository...        [                                       ] 3% Fetch remote repository...         [=                                      ] 3% Fetch remote repository...         [=                                      ] 4% Fetch remote repository...         [=                                      ] 5% Fetch remote repository...         [==                                     ] 5% Fetch remote repository...         [==                                     ] 6% Fetch remote repository...         [==                                     ] 7% Fetch remote repository...         [==                                     ] 7% Computing updates...               [===                                    ] 8% Computing updates...               [===                                    ] 10% Computing updates...              [===                                    ] 10% Installing Android SDK Build-Tools[===                                    ] 10% Downloading build-tools_r35_linux.[====                                   ] 10% Downloading build-tools_r35_linux.[====                                   ] 11% Downloading build-tools_r35_linux.[====                                   ] 12% Downloading build-tools_r35_linux.[=====                                  ] 13% Downloading build-tools_r35_linux.[=====                                  ] 14% Downloading build-tools_r35_linux.[=====                                  ] 15% Downloading build-tools_r35_linux.[======                                 ] 15% Downloading build-tools_r35_linux.[======                                 ] 16% Downloading build-tools_r35_linux.[======                                 ] 17% Downloading build-tools_r35_linux.[=======                                ] 18% Downloading build-tools_r35_linux.[=======                                ] 19% Downloading build-tools_r35_linux.[=======                                ] 20% Downloading build-tools_r35_linux.[========                               ] 20% Downloading build-tools_r35_linux.[========                               ] 21% Downloading build-tools_r35_linux.[========                               ] 21% Unzipping...                      [========                               ] 21% Unzipping... android-15/NOTICE.txt[========                               ] 21% Unzipping... android-15/aapt      [========                               ] 21% Unzipping... android-15/aapt2     [========                               ] 22% Unzipping... android-15/aapt2     [========                               ] 22% Unzipping... android-15/aarch64-li[========                               ] 22% Unzipping... android-15/aidl      [========                               ] 22% Unzipping... android-15/apksigner [========                               ] 22% Unzipping... android-15/arm-linux-[========                               ] 22% Unzipping... android-15/bcc_compat[========                               ] 22% Unzipping... android-15/core-lambd[========                               ] 22% Unzipping... android-15/d8        [========                               ] 22% Unzipping... android-15/dexdump   [=========                              ] 23% Unzipping... android-15/dexdump   [=========                              ] 23% Unzipping... android-15/i686-linux[=========                              ] 23% Unzipping... android-15/lld       [=========                              ] 23% Unzipping... android-15/llvm-rs-cc[=========                              ] 23% Unzipping... android-15/mipsel-lin[=========                              ] 23% Unzipping... android-15/runtime.pr[=========                              ] 23% Unzipping... android-15/source.pro[=========                              ] 23% Unzipping... android-15/split-sele[=========                              ] 23% Unzipping... android-15/x86_64-lin[=========                              ] 23% Unzipping... android-15/zipalign  [=========                              ] 23% Unzipping... android-15/lib/apksig[=========                              ] 23% Unzipping... android-15/lib/d8.jar[=========                              ] 24% Unzipping... android-15/lib/d8.jar[=========                              ] 25% Unzipping... android-15/lib/d8.jar[==========                             ] 25% Unzipping... android-15/lib/d8.jar[==========                             ] 25% Unzipping... android-15/lib64/libL[==========                             ] 26% Unzipping... android-15/lib64/libL[==========                             ] 27% Unzipping... android-15/lib64/libL[==========                             ] 27% Unzipping... android-15/lib64/libb[==========                             ] 27% Unzipping... android-15/lib64/libc[===========                            ] 28% Unzipping... android-15/lib64/libc[===========                            ] 29% Unzipping... android-15/lib64/libc[===========                            ] 29% Unzipping... android-15/lld-bin/ll[===========                            ] 30% Unzipping... android-15/lld-bin/ll[============                           ] 30% Unzipping... android-15/lld-bin/ll[============                           ] 31% Unzipping... android-15/lld-bin/ll[============                           ] 31% Unzipping... android-15/renderscri[============                           ] 32% Unzipping... android-15/renderscri[=============                          ] 33% Unzipping... android-15/renderscri[=====================                  ] 55% Unzipping... android-15/renderscri[=====================                  ] 55% Installing Android SDK Platform 34[=====================                  ] 55% Downloading platform-34-ext7_r03.z[======================                 ] 55% Downloading platform-34-ext7_r03.z[======================                 ] 56% Downloading platform-34-ext7_r03.z[======================                 ] 57% Downloading platform-34-ext7_r03.z[=======================                ] 58% Downloading platform-34-ext7_r03.z[=======================                ] 59% Downloading platform-34-ext7_r03.z[=======================                ] 60% Downloading platform-34-ext7_r03.z[========================               ] 60% Downloading platform-34-ext7_r03.z[========================               ] 61% Downloading platform-34-ext7_r03.z[========================               ] 62% Downloading platform-34-ext7_r03.z[=========================              ] 63% Downloading platform-34-ext7_r03.z[=========================              ] 64% Downloading platform-34-ext7_r03.z[=========================              ] 65% Downloading platform-34-ext7_r03.z[==========================             ] 65% Downloading platform-34-ext7_r03.z[==========================             ] 66% Downloading platform-34-ext7_r03.z[==========================             ] 66% Unzipping... android-15/renderscri[==========================             ] 66% Unzipping... android-34/          [==========================             ] 66% Unzipping... android-34/android.ja[==========================             ] 67% Unzipping... android-34/android.ja[===========================            ] 68% Unzipping... android-34/android.ja[===========================            ] 69% Unzipping... android-34/android.ja[===========================            ] 70% Unzipping... android-34/android.ja[============================           ] 70% Unzipping... android-34/android.ja[============================           ] 71% Unzipping... android-34/android.ja[============================           ] 71% Unzipping... android-34/optional/ [============================           ] 71% Unzipping... android-34/optional/a[============================           ] 71% Unzipping... android-34/optional/l[============================           ] 71% Unzipping... android-34/optional/o[============================           ] 71% Unzipping... android-34/optional/a[============================           ] 71% Unzipping... android-34/optional/o[============================           ] 71% Unzipping... android-34/templates/[============================           ] 71% Unzipping... android-34/core-for-s[============================           ] 71% Unzipping... android-34/build.prop[============================           ] 71% Unzipping... android-34/android-st[============================           ] 72% Unzipping... android-34/android-st[============================           ] 72% Unzipping... android-34/uiautomato[============================           ] 72% Unzipping... android-34/source.pro[============================           ] 72% Unzipping... android-34/data/     [============================           ] 72% Unzipping... android-34/data/servi[============================           ] 72% Unzipping... android-34/data/NOTIC[============================           ] 72% Unzipping... android-34/data/widge[============================           ] 72% Unzipping... android-34/data/broad[============================           ] 72% Unzipping... android-34/data/api-v[============================           ] 72% Unzipping... android-34/data/featu[============================           ] 72% Unzipping... android-34/data/annot[============================           ] 72% Unzipping... android-34/data/res/ [============================           ] 72% Unzipping... android-34/data/res/v[============================           ] 72% Unzipping... android-34/data/res/l[============================           ] 72% Unzipping... android-34/data/res/v[============================           ] 72% Unzipping... android-34/data/res/m[============================           ] 72% Unzipping... android-34/data/res/v[============================           ] 72% Unzipping... android-34/data/res/a[============================           ] 72% Unzipping... android-34/data/res/v[============================           ] 72% Unzipping... android-34/data/res/d[============================           ] 72% Unzipping... android-34/data/res/v[============================           ] 72% Unzipping... android-34/data/res/x[============================           ] 72% Unzipping... android-34/data/res/v[============================           ] 72% Unzipping... android-34/data/res/l[============================           ] 72% Unzipping... android-34/data/res/v[============================           ] 72% Unzipping... android-34/data/res/l[============================           ] 72% Unzipping... android-34/data/res/v[============================           ] 72% Unzipping... android-34/data/res/r[============================           ] 72% Unzipping... android-34/data/res/v[=============================          ] 73% Unzipping... android-34/data/res/v[=============================          ] 73% Unzipping... android-34/data/res/x[=============================          ] 73% Unzipping... android-34/data/res/v[=============================          ] 73% Unzipping... android-34/data/res/r[=============================          ] 73% Unzipping... android-34/data/res/v[=============================          ] 73% Unzipping... android-34/data/res/a[=============================          ] 73% Unzipping... android-34/data/res/v[=============================          ] 73% Unzipping... android-34/data/res/r[=============================          ] 73% Unzipping... android-34/data/res/v[=============================          ] 73% Unzipping... android-34/data/res/c[=============================          ] 73% Unzipping... android-34/data/res/v[=============================          ] 73% Unzipping... android-34/data/res/d[=============================          ] 73% Unzipping... android-34/data/res/v[=============================          ] 73% Unzipping... android-34/data/res/t[=============================          ] 73% Unzipping... android-34/data/res/v[=============================          ] 73% Unzipping... android-34/data/res/x[=============================          ] 73% Unzipping... android-34/data/res/v[=============================          ] 73% Unzipping... android-34/data/res/r[=============================          ] 73% Unzipping... android-34/data/res/v[=============================          ] 73% Unzipping... android-34/data/res/r[=============================          ] 73% Unzipping... android-34/data/res/v[=============================          ] 73% Unzipping... android-34/data/res/l[=============================          ] 73% Unzipping... android-34/data/res/v[=============================          ] 73% Unzipping... android-34/data/res/r[=============================          ] 73% Unzipping... android-34/data/res/v[=============================          ] 73% Unzipping... android-34/data/res/d[=============================          ] 74% Unzipping... android-34/data/res/d[=============================          ] 74% Unzipping... android-34/data/res/v[=============================          ] 74% Unzipping... android-34/data/res/d[=============================          ] 74% Unzipping... android-34/data/res/v[=============================          ] 74% Unzipping... android-34/data/res/r[=============================          ] 74% Unzipping... android-34/data/res/v[=============================          ] 74% Unzipping... android-34/data/res/r[=============================          ] 74% Unzipping... android-34/data/res/v[=============================          ] 74% Unzipping... android-34/data/res/m[=============================          ] 74% Unzipping... android-34/data/res/v[=============================          ] 74% Unzipping... android-34/data/res/r[=============================          ] 74% Unzipping... android-34/data/res/v[=============================          ] 74% Unzipping... android-34/data/res/c[=============================          ] 74% Unzipping... android-34/data/res/v[=============================          ] 74% Unzipping... android-34/data/res/r[=============================          ] 74% Unzipping... android-34/data/res/v[=============================          ] 74% Unzipping... android-34/data/res/r[=============================          ] 74% Unzipping... android-34/data/res/v[=============================          ] 74% Unzipping... android-34/data/res/d[=============================          ] 74% Unzipping... android-34/data/res/v[=============================          ] 74% Unzipping... android-34/data/res/r[=============================          ] 74% Unzipping... android-34/data/res/v[=============================          ] 74% Unzipping... android-34/data/res/c[=============================          ] 74% Unzipping... android-34/data/res/v[=============================          ] 74% Unzipping... android-34/data/res/m[=============================          ] 74% Unzipping... android-34/data/res/v[=============================          ] 74% Unzipping... android-34/data/res/r[=============================          ] 74% Unzipping... android-34/data/res/v[=============================          ] 74% Unzipping... android-34/data/res/r[=============================          ] 74% Unzipping... android-34/data/res/v[=============================          ] 74% Unzipping... android-34/data/res/i[=============================          ] 74% Unzipping... android-34/data/res/v[=============================          ] 74% Unzipping... android-34/data/res/d[=============================          ] 74% Unzipping... android-34/data/res/v[=============================          ] 74% Unzipping... android-34/data/res/m[=============================          ] 74% Unzipping... android-34/data/res/v[=============================          ] 74% Unzipping... android-34/data/res/d[=============================          ] 74% Unzipping... android-34/data/res/v[=============================          ] 74% Unzipping... android-34/data/res/d[=============================          ] 74% Unzipping... android-34/data/res/v[=============================          ] 74% Unzipping... android-34/data/res/d[=============================          ] 75% Unzipping... android-34/data/res/d[=============================          ] 75% Unzipping... android-34/data/res/v[=============================          ] 75% Unzipping... android-34/data/res/d[==============================         ] 75% Unzipping... android-34/data/res/d[==============================         ] 75% Unzipping... android-34/data/res/v[==============================         ] 75% Unzipping... android-34/data/res/d[==============================         ] 75% Unzipping... android-34/data/res/v[==============================         ] 75% Unzipping... android-34/data/res/d[==============================         ] 75% Unzipping... android-34/data/res/v[==============================         ] 75% Unzipping... android-34/data/res/x[==============================         ] 75% Unzipping... android-34/data/res/v[==============================         ] 75% Unzipping... android-34/data/res/d[==============================         ] 75% Unzipping... android-34/data/res/v[==============================         ] 75% Unzipping... android-34/data/res/d[==============================         ] 76% Unzipping... android-34/data/res/d[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/a[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/r[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/m[==============================         ] 76% Unzipping... android-34/data/res/x[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/a[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/i[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/r[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/r[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/r[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/l[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/l[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/d[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/l[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/m[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/r[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/d[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/l[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/l[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/d[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/l[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/c[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/r[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/d[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/m[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/d[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/m[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/r[==============================         ] 76% Unzipping... android-34/data/res/l[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/r[==============================         ] 76% Unzipping... android-34/data/res/v[==============================         ] 76% Unzipping... android-34/data/res/d[==============================         ] 77% Unzipping... android-34/data/res/d[==============================         ] 77% Unzipping... android-34/data/res/v[==============================         ] 77% Unzipping... android-34/data/res/r[==============================         ] 77% Unzipping... android-34/data/res/v[==============================         ] 77% Unzipping... android-34/data/res/d[==============================         ] 77% Unzipping... android-34/data/res/v[==============================         ] 77% Unzipping... android-34/data/res/d[==============================         ] 77% Unzipping... android-34/data/res/v[==============================         ] 77% Unzipping... android-34/data/categ[==============================         ] 77% Unzipping... android-34/data/activ[==============================         ] 77% Unzipping... android-34/sdk.proper[==============================         ] 77% Unzipping... android-34/skins/    [==============================         ] 77% Unzipping... android-34/skins/WXGA[==============================         ] 77% Unzipping... android-34/skins/WQVG[==============================         ] 77% Unzipping... android-34/skins/NOTI[==============================         ] 77% Unzipping... android-34/skins/HVGA[==============================         ] 77% Unzipping... android-34/skins/WVGA[==============================         ] 77% Unzipping... android-34/skins/WQVG[==============================         ] 77% Unzipping... android-34/skins/WVGA[==============================         ] 77% Unzipping... android-34/skins/QVGA[==============================         ] 77% Unzipping... android-34/skins/WXGA[==============================         ] 77% Unzipping... android-34/skins/WSVG[==============================         ] 77% Unzipping... android-34/skins/WXGA[==============================         ] 77% Unzipping... android-34/framework.[==============================         ] 78% Unzipping... android-34/framework.[=======================================] 100% Unzipping... android-34/framework
+
+== SDK 目录 ==
+android-34
+35.0.0
+== 工作目录 ==
+未配置 LX_KEYSTORE_B64，本次由构建脚本生成临时 keystore
+== 版本号一致性 ==
+build.py 3.13.7 (24) / manifest 3.13.7 (24)
+== 生成单文件版 ==
+生成 /home/runner/work/lx-music-m/lx-music-m/app/standalone.html
+  大小 441700 B
+  CSS 3 个，脚本 13 个，字体 base64 17484 字符
+  剩余外部引用: 无
+== 逻辑冒烟 ==
+
+=== 1. 冷启动（八脚本按序加载 + DOMContentLoaded） ===
+  PASS  十三个脚本加载无语法/运行时异常
+  PASS  DOMContentLoaded 之前不自动渲染（避免白屏）
+  PASS  冷启动无异常
+  PASS  window.LXI18N 已挂载
+  PASS  window.LXTheme 已挂载
+  PASS  window.LXData 已挂载
+  PASS  window.LXEngine 已挂载
+  PASS  window.LXDownload 已挂载
+  PASS  window.LXSourceAPI（lx 兼容层）已挂载
+  PASS  window.LXSources（音源管理）已挂载
+  PASS  window.LXPlatform（平台适配器）已挂载
+  PASS  window.LXHttp（原生 HTTP 桥）已挂载
+  PASS  window.LXApp 已挂载（早于首次 render）
+  PASS  window.LXRenderDownloads 已挂载
+  PASS  首屏已渲染（抽屉导航非空）
+
+=== 2. 原版界面证据：文案 / 主题 / 图标 / 数据口径 ===
+  PASS  zh-cn 文案 520 条
+  PASS  nav_search = 搜索
+  PASS  nav_love = 我的列表
+  PASS  search__welcome 原版文案
+  PASS  search_history_search = 历史搜索
+  PASS  16 套主题
+  PASS  默认主题 green / 绿意盎然
+  PASS  默认 primary rgb(77, 175, 124)
+  PASS  派生颜色变量 >= 232
+  PASS  c-font 别名已映射
+  PASS  c-content-background 别名已映射
+  PASS  52 个 icomoon 图标类
+  PASS  图标字体文件存在
+  PASS  图标码点 download-2 存在
+  PASS  24 个榜单
+  PASS  内置演示曲库已清空
+  PASS  演示歌单 / 热门词 / 歌词 / 评论已清空
+  PASS  5 个默认列表（含 download）
+  PASS  green 主题 CSS 变量已写入 documentElement
+  PASS  data-theme 属性 = green
+
+=== 3. 界面骨架：抽屉 / Header / 视图 / PlayerBar ===
+  PASS  抽屉 6 项导航
+  PASS  导航含「搜索」
+  PASS  导航含「歌单」
+  PASS  导航含「排行榜」
+  PASS  导航含「我的列表」
+  PASS  导航含「下载」
+  PASS  导航含「设置」
+  PASS  导航图标沿用原版 icon 名
+  PASS  Header 首屏标题 = 搜索
+  PASS  PlayerBar 初始标题 = LX Music
+  PASS  Header 高度 42px（对齐原版）
+  PASS  抽屉宽 70% / 最大 300px
+  PASS  歌曲行高 54px
+  PASS  PlayerBar 按钮 46×46 / 图标 24px
+  PASS  搜索页 header 不再有「歌曲/歌单」死标签
+  PASS  搜索页右上角为空
+  PASS  styles.css 已移除 .type-tabs 规则
+  PASS  页面标题为 LX Music
+
+=== 4. 六个视图切换与渲染 ===
+  PASS  视图 nav_search 渲染非空
+  PASS  视图 nav_search 标题 = 搜索
+  PASS  视图 nav_search 含 searchbar
+  PASS  视图 nav_search 无 [object Object]/undefined
+  PASS  视图 nav_songlist 渲染非空
+  PASS  视图 nav_songlist 标题 = 歌单
+  PASS  视图 nav_songlist 含 pl-refresh
+  PASS  视图 nav_songlist 无 [object Object]/undefined
+  PASS  视图 nav_top 渲染非空
+  PASS  视图 nav_top 标题 = 排行榜
+  PASS  视图 nav_top 含 board
+  PASS  视图 nav_top 无 [object Object]/undefined
+  PASS  视图 nav_love 渲染非空
+  PASS  视图 nav_love 标题 = 我的列表
+  PASS  视图 nav_love 无 [object Object]/undefined
+  PASS  视图 nav_download 渲染非空
+  PASS  视图 nav_download 标题 = 下载
+  PASS  视图 nav_download 含 dl-stats
+  PASS  视图 nav_download 无 [object Object]/undefined
+  PASS  视图 nav_setting 渲染非空
+  PASS  视图 nav_setting 标题 = 设置
+  PASS  视图 nav_setting 含 theme-grid
+  PASS  视图 nav_setting 无 [object Object]/undefined
+
+=== 5. 平台搜索 / 播放 / 队列 / 全屏页 ===
+  PASS  搜索页显示「搜我所想~~😉」欢迎语
+  PASS  搜索页显示「历史搜索」区块
+  PASS  搜索页有平台选择条
+  PASS  平台 chip = 5 个
+  PASS  默认平台 = 酷我
+  PASS  未导入音源时说明不能播放
+  PASS  酷我内置接口返回结果
+  PASS  曲目带平台标记且无 apiId
+  PASS  来源说明含平台名
+  PASS  搜索历史写入「夜」
+  PASS  未绑定音源时播放被拦截
+  PASS  导入测试音源成功
+  PASS  音源按 sources 声明自动匹配酷我
+  PASS  平台验证通过
+  PASS  未声明的平台不会误匹配
+  PASS  绑定后平台曲目走在线收听
+  PASS  平台曲目播放队列已建立
+  PASS  结果页显示条数
+  PASS  多选栏出现
+  PASS  全选生效
+  PASS  退出多选清空选择
+  PASS  点曲目行开始播放
+  PASS  播放队列已建立
+  PASS  PlayerBar 显示当前曲目名
+  PASS  PlayerBar 显示暂停图标
+  PASS  点暂停后 PlayerBar 恢复播放图标
+  PASS  再次点按恢复播放
+  PASS  下一首切换队列索引
+  PASS  播放模式循环
+  PASS  播放速率切换
+  PASS  播放详情页打开
+  PASS  播放详情页含歌词
+  PASS  播放详情页关闭
+  PASS  歌曲长按菜单含「下载」
+  PASS  评论页打开
+  PASS  评论页切换最新评论
+  PASS  评论点赞生效
+  PASS  全屏页 backup 渲染
+  PASS  全屏页 sync 渲染
+  PASS  全屏页 about 渲染
+  PASS  全屏页 cache 渲染
+  PASS  设置页 16 个主题色块
+  PASS  模拟离线开关生效
+  PASS  切换黑色主题
+  PASS  黑色主题主背景
+  PASS  16 套主题全部可应用且生成 --c-primary
+
+=== 6. 歌曲下载：WAV 编码 / 队列状态机 / Android 桥 ===
+  PASS  下载页统计区
+  PASS  下载页音质选择
+  PASS  3 个音质档位
+  PASS  音质采样率 6000/8000/11025
+  PASS  入队 1 首
+  PASS  重复入队被去重
+[LXDIAG][lyric] 测试源/kw => ok 11 字
+  PASS  任务完成 state=done
+  PASS  进度 100%
+  PASS  生成文件大小 = 44 + 8000×时长×2
+  PASS  文件名含中文曲名与歌手
+  PASS  离线可播放 URL 已生成
+  PASS  isDone 标记生效
+  PASS  stats.done = 1
+  PASS  下载页统计卡片随任务实时刷新（已完成=1）
+  PASS  下载页「已占用」实时刷新
+  PASS  Android 桥 start/chunk/finish 均被调用
+  PASS  分块数 > 1（大文件分块传输）
+  PASS  桥 MIME = audio/wav
+  PASS  WAV 字节数与任务 size 一致
+  PASS  RIFF 头
+  PASS  WAVE 标识
+  PASS  fmt  子块
+  PASS  PCM 格式 = 1
+  PASS  单声道 = 1
+  PASS  采样率 = 8000
+  PASS  位深 = 16
+  PASS  data 子块
+  PASS  data 长度 = 总长 - 44
+  PASS  RIFF 长度字段正确
+  PASS  onDeviceSaved 记录落盘路径
+  PASS  「保存到设备」按钮可重新交付文件
+  PASS  离线模式下已下载曲目可播放
+  PASS  离线模式拦截未下载曲目
+
+=== 7. 队列状态机：暂停 / 继续 / 取消 / 重试 / 移除 / 清理 ===
+  PASS  新任务进入 waiting/running
+  PASS  暂停 -> paused
+  PASS  继续 -> waiting/running
+  PASS  取消 -> cancelled
+  PASS  重试 -> waiting/running
+  PASS  移除后任务消失
+  PASS  清理已完成后队列为空
+  PASS  清空后 stats.done = 0
+
+=== 8. 持久化 / 单文件版 / 无网络请求 ===
+  PASS  状态写入 localStorage
+  PASS  下载索引写入 localStorage
+  FAIL  非音源模块无网络 API（fetch/XHR/WebSocket/EventSource）
+  PASS  运行时脚本不引用外部资源 URL
+  PASS  网络能力只集中在音源运行时（lx.request 兼容层）
+  PASS  音源脚本受限作用域屏蔽 window/document/localStorage/fetch
+  PASS  单文件版存在且 > 100 KB
+  PASS  单文件版无外部 script/link 引用
+  PASS  单文件版内联 13 段脚本
+  PASS  单文件版内联字体 base64
+  PASS  单文件版含 3 段 CSS 注释
+
+=== 9. 自定义 JS 音源：协议 / 导入 / 搜索 / 在线收听 / 按格式下载 ===
+  PASS  lx 兼容层 EVENT_NAMES 对齐原版 v2.0.0
+  PASS  lx 支持原版音质档位
+  PASS  utils.buffer base64/hex/utf8 往返
+  PASS  utils.crypto.md5 结果正确
+  PASS  测试音源初始化成功
+  PASS  示例音源声明 search / downloadUrl / musicUrl
+  PASS  脚本头解析 @name / @version / @author
+  PASS  无效脚本被拒绝
+  PASS  原版 user-api v2.0.0 脚本可直接导入
+  PASS  原版脚本只声明 musicUrl/lyric/pic 仍可用
+  PASS  脚本作用域屏蔽 window/document/localStorage
+  PASS  lx 版本 2.0.0 / env mobile
+  PASS  JS 音源搜索返回曲目
+  PASS  搜索结果注入 LXData 曲目池
+  PASS  曲目带自定义来源 / 音质 / 格式
+  PASS  musicUrl 返回可在线播放的 URL
+  PASS  downloadUrl 按来源格式返回 Blob
+  PASS  下载字节是真实 RIFF/WAVE 音频
+  PASS  搜索页按平台结果渲染
+  PASS  搜索结果显示平台来源说明
+  PASS  自定义音源曲目走在线收听（engine.mode=stream）
+  PASS  在线音频元素已设置播放地址
+  PASS  下载任务按音源格式完成
+  PASS  文件名后缀按来源格式生成
+  PASS  Android 保存桥使用音源 MIME
+  PASS  音源曲目已下载标记
+  PASS  按音源格式下载仍可离线播放（local）
+  PASS  自定义源管理页标题用原版文案
+  PASS  含本地/在线导入与粘贴脚本
+  PASS  含原版安全提示
+  PASS  列表显示音源状态与动作
+  PASS  含源编写说明与 FAQ 入口
+  PASS  设置页含自定义源管理
+  PASS  已去掉平台单独绑定入口
+  PASS  设置页可切换音源音质
+  PASS  音质切换写入设置
+  PASS  停用音源后不参与搜索
+  PASS  重新启用音源后自动重新初始化
+  PASS  在线导入经原生 HTTP 桥成功
+  PASS  在线导入脚本同样可搜索
+  PASS  非 HTTP 在线导入被拒绝
+  PASS  音源日志已记录
+  PASS  最多 20 个音源限制生效
+  PASS  移除音源可用
+
+=== 10. 平台切换 / 排行榜 / 数据迁移 ===
+  PASS  切换到酷狗平台
+  PASS  切平台清空上一次结果
+  PASS  酷狗接口返回结果
+  PASS  结果带酷狗平台标记
+  PASS  酷狗曲目带 hash（供音源解析）
+  PASS  酷狗内置 24 个榜单
+  PASS  榜单曲目来自酷狗接口
+  PASS  排行榜页渲染榜单卡片入口
+  PASS  榜单来源说明含平台名
+  PASS  点榜单卡片进入目录浮层
+  PASS  榜单目录渲染曲目
+  PASS  目录浮层给底部播放条让位
+  PASS  排行榜主页不再把曲目铺在下面
+  PASS  同一音源也自动服务酷狗
+  PASS  有音源提供地址时榜单可播放
+  PASS  五个平台都有榜单目录
+  PASS  切到酷我后仍渲染榜单卡片
+  PASS  咪咕接口返回结果
+  PASS  咪咕结果带平台标记
+  PASS  网易已内置搜索
+  PASS  QQ 已内置搜索
+  PASS  网易接口返回结果
+  PASS  网易结果带平台标记
+  PASS  网易来源说明含平台名
+  PASS  网易请求为 POST form
+  PASS  网易 params 是大写 hex（AES 输出）
+  PASS  网易曲目带 songmid / interval（供音源取链）
+  PASS  网易曲目合并多歌手
+  PASS  网易曲目音质含无损
+  PASS  网易曲目音质含母带（jm 存在）
+  PASS  网易曲目时长按 dt/1000 换算
+  PASS  QQ 接口返回结果
+  PASS  QQ 结果带平台标记
+  PASS  QQ 来源说明含平台名
+  PASS  QQ 请求带 sign 且为 POST JSON
+  PASS  QQ 曲目 songmid = mid
+  PASS  QQ 曲目带 media_mid（供音源取链）
+  PASS  QQ 曲目音质含母带
+  PASS  QQ 曲目音质不含未声明档
+  PASS  QQ 曲目时长来自 interval 秒
+  PASS  加密模块已挂载
+  PASS  SHA1 与标准一致
+  PASS  MD5 与标准一致
+  PASS  AES-128-ECB 与标准一致
+  PASS  zzcSign 与 lxserver 一致
+  PASS  导入网易QQ母带源
+  PASS  网易曲目按 sources 找到音源
+  PASS  QQ 曲目按 sources 找到音源
+  PASS  音源声明的档位被读出
+  PASS  菜单把母带标为可用（网易）
+  PASS  菜单把母带标为可用（QQ）
+  PASS  未声明的档位仍灰显但保留在菜单
+  PASS  迁移清理内置演示曲目的下载任务
+  PASS  数据版本已标记为 3
+
+=== 11. 本地音源导入（真机 bug 回归：点「本地导入」无反应） ===
+  PASS  window.LXFilePick 已挂载
+  PASS  冷启动主动向 Java 索取暂存结果
+  PASS  点「本地导入」调用原生 pickScript 桥
+  PASS  立即进入等待态（取消/失败也有反馈）
+  PASS  分块回传后音源数量 +1
+  PASS  音源名称取自文件脚本头 @name
+  PASS  origin 记录真实文件名
+  PASS  已向 Java 确认消费（防重复导入）
+  PASS  等待态正常结束
+  PASS  导入的音源可立即用于搜索
+  PASS  取消选择不再静默（确认消费 + 结束等待态）
+  PASS  空文件给出可操作原因
+  PASS  缺少 @name 给出可操作原因
+  PASS  回退路径把 file input 挂到 DOM
+  PASS  回退路径不用 display:none
+  PASS  回退路径「未选择文件」不会静默
+
+=== 12. 原生流式下载（真实音频 URL / 进度 / 继续） ===
+  PASS  导入 HTTP 下载源
+  PASS  音源返回 http 地址时走原生流式下载
+  PASS  下载 URL 来自音源 downloadUrl
+  PASS  文件名按歌手-歌名生成
+  PASS  原生下载带上落盘目录（默认 Download/LX Music）
+  PASS  进度按已下载字节计算
+  PASS  记录已接收 / 总大小
+  PASS  计算下载速度
+  PASS  原生下载完成后 state=done
+  PASS  进度 100%
+  PASS  记录落盘路径
+  PASS  原生下载后不再显示「保存到设备」
+  PASS  取消任务会中断原生下载
+  PASS  下载失败记录原因
+  PASS  失败任务可重试
+
+=== 13. 下载音质选择（最高母带 / 按音源解析 / 自动降级） ===
+  PASS  音质模块已挂载
+  PASS  共 9 档音质
+  PASS  最高档是母带 master
+  PASS  最低档是 128k
+  PASS  母带中文名 = 母带音质
+  PASS  旧三档映射到标准 key
+  PASS  平台可选音质：酷我到 hires、QQ 到母带
+  PASS  从曲目 qualitys 读出可用档
+  PASS  selectable 覆盖 9 档并标注声明状态
+  PASS  下载菜单标题提示选择品质
+  PASS  下载菜单列出母带音质
+  PASS  下载菜单列出 9 个品质选项
+  PASS  下载菜单含返回项
+  PASS  导入母带降级源
+  PASS  按所选母带入队
+  PASS  音源收到的 info.type = master
+  PASS  母带解析不到时自动降级
+  PASS  降级过程逐档尝试
+  PASS  任务上留下降级说明
+  PASS  下载页显示「母带音质 → 无损音质」
+  PASS  导入全档失败源
+  PASS  全档失败时任务标为 error
+  PASS  错误说明列出尝试过的档位
+  PASS  批量下载先弹品质菜单
+  PASS  批量菜单用批量入队动作
+
+=== 14. 音源取链失败必须透传原因（v3.6.0） ===
+  PASS  导入拒绝取链源
+  PASS  解析失败返回 null
+  PASS  记录音源返回的原始原因
+  PASS  下载任务进入 error
+  PASS  错误文案带音源原文（不是笼统「没有地址」）
+  PASS  错误文案仍列出尝试过的档位
+
+=== 15. 音效系统（对齐 lxserver sound-effects） ===
+  PASS  LXSound 已挂载
+  PASS  10 段均衡器（31Hz~16kHz）
+  PASS  9 个官方预设
+  PASS  预设名称与官方一致
+  PASS  重低音预设增益与官方一致
+  PASS  默认关闭
+  PASS  套用预设后自动开启
+  PASS  预设增益写入 EQ
+  PASS  状态描述含预设名
+  PASS  单段增益钳制在 +12
+  PASS  手动改频段后预设变「自定义」
+  PASS  混响切到大厅
+  PASS  3D 环绕可开启
+  PASS  音效配置已持久化
+  PASS  关闭音效保留已配参数
+  PASS  关闭后描述为已关闭
+  PASS  重置清空 EQ / 混响 / 环绕
+
+=== 16. 歌词解析与详情页（v3.7.0） ===
+  PASS  LXLyr 已挂载
+  PASS  解析出 3 行
+  PASS  offset 让歌词提前 0.5s
+  PASS  时间精确到百分秒
+  PASS  一行多个时间标签展开
+  PASS  同时间戳第二行作为翻译
+  PASS  去掉逐字标签
+  PASS  第一行之前返回 -1
+  PASS  命中第二行
+  PASS  超过末行返回最后一行
+  PASS  无时间标签按纯文本处理
+  PASS  渲染 3 行 lc-line
+  PASS  行上带跳转时间
+  PASS  没有歌词时给出提示
+  PASS  详情页含歌词容器
+  PASS  详情页含「下载」按钮
+  PASS  详情页含「音效」按钮
+  PASS  详情页含「歌词」开关
+  PASS  详情页含「收藏」按钮
+  PASS  点收藏弹出列表选择
+  PASS  弹窗列出所有列表
+  PASS  选列表后歌曲被加进去
+  PASS  已收藏的列表在弹窗里标「已收藏」
+  PASS  重复收藏不会加两次
+  PASS  收藏弹窗认的是详情页那首歌（不是碰巧正在播放的）
+  PASS  音效页可打开
+  PASS  音效页有 9 个预设
+  PASS  音效页有 10 段 EQ
+  PASS  音效页有混响与环绕
+
+=== 17. 下载音质尊重手动选择（不再预先降档） ===
+  PASS  未指定档位时按设置里的母带入队
+  PASS  入队档位不会被「可用档位」改写
+
+=== 18. 默认音源与音源更新（v3.8.0） ===
+  PASS  已不再提供逐平台绑定 API
+  PASS  导入默认音源候选
+  PASS  在线源可识别为可更新
+  PASS  默认前：kg 取第一个自动匹配的源
+  PASS  设置默认音源
+  PASS  默认音源优先于自动匹配
+  PASS  默认音源未声明的平台仍自动匹配
+  PASS  默认设置已持久化
+  PASS  默认音源显示在管理页
+  PASS  在线音源有「更新」按钮
+  PASS  可取消默认音源
+
+=== 19. 系统返回键 / 在线歌单 / 音频代理（v3.9.0） ===
+  PASS  LXApp 暴露 handleBack
+  PASS  当前在设置页
+  PASS  返回键消费：设置页 → 搜索页
+  PASS  返回键清空搜索结果
+  PASS  搜索主页再无内容时不消费（交给系统退出）
+  PASS  歌单页有「换一批」入口
+  PASS  歌单页有歌单详情加载器
+  PASS  歌单页渲染平台选择条
+  PASS  歌单页有「换一批」按钮
+  PASS  浏览器环境不启用媒体代理
+  PASS  原生环境走媒体代理
+  PASS  代理地址是本源（不会被跨域静音）
+  PASS  音源 headers 一并带上
+
+=== 20. 音源失败时回退到同平台的其他音源（v3.9.0） ===
+  PASS  两个回退音源均导入成功
+  PASS  候选链把默认音源排在第一位
+  PASS  候选链包含同平台的其它音源
+  PASS  默认音源失败后自动回退并拿到地址
+  PASS  回退成功后不再记录错误
+
+=== 21. 设置项真正可改：速率 / 歌词字号 / 界面字号 / 下载音质（v3.10.0） ===
+  PASS  「播放速率」有滑块
+  PASS  「播放速率」有数字框
+  PASS  「歌词字体大小」可输入
+  PASS  「界面字体大小」可输入
+  PASS  「下载音质」下拉 9 档
+  PASS  点击数字框不再重建设置页（旧版「改不了」的根因回归）
+  PASS  播放速率可改（1.5×）
+  PASS  界面字体大小生效（--ui-fs=1.214）
+  PASS  歌词字体大小生效（--lyric-size=20px）
+  PASS  下载音质可改并写入设置/队列
+  PASS  style.css 不再有裸 px 字号（全部跟随 --ui-fs）
+
+=== 22. 播放详情：下一首 / 队列剩余 / 点选切歌（v3.11.0） ===
+  PASS  详情页常驻「下一首」信息条
+  PASS  下一首显示队列里的第二首
+  PASS  显示当前位置与剩余首数
+  PASS  信息条标注当前播放模式
+  PASS  详情页新增「列表」入口
+  PASS  信息条可点进队列页
+  PASS  顺序播放到底时剩余为 0 首
+  PASS  随机模式不预告具体下一首
+  PASS  单曲循环提示播完重来
+  PASS  随机播放 20 次都不会停在原曲
+  PASS  队列页列出全部 5 首
+  PASS  队列页高亮当前曲目
+  PASS  队列页显示总首数与当前位置
+  PASS  点选队列任一曲目即切换
+  PASS  切换后详情页同步到第 2 首
+
+=== 23. 下载目录可选（v3.12.0） ===
+  PASS  设置页有「下载目录」一行
+  PASS  「下载目录」是可选择的下拉（不是只读文字）
+  PASS  预置 4 个常用目录 + 1 个自定义
+  PASS  默认落在 Download/LX Music
+  PASS  行内展示解析后的完整路径
+  PASS  切到 Music/LX Music 生效（设置 + 下载队列同步）
+  PASS  切换后仍然不需要存储权限（只改 RELATIVE_PATH）
+  PASS  选「自定义目录」弹出输入框
+  PASS  弹窗解释 Android 分区存储的可写范围
+  PASS  取消自定义后落盘目录不变
+  PASS  只写子目录时归到 Download 下
+  PASS  未知根目录也归到 Download 下
+  PASS  自定义中文目录原样保留
+  PASS  带 ../ 的路径被拒绝并回默认
+  PASS  过长路径被拒绝并回默认
+  PASS  dirOf 归一化后即为下一首下载使用的目录
+  PASS  非法控制字符目录被清洗回默认
+
+=== 24. 下载页点行播放 + 音效接管（v3.13.0） ===
+  PASS  已保存任务能取回落盘路径
+  PASS  已完成任务整行就是播放按钮（不用另找按钮）
+  PASS  不再单独放「播放」按钮
+  PASS  行内仍有移除按钮
+  PASS  已下载曲目改播本地文件（不再回头向音源要地址）
+  PASS  本地地址带上了落盘路径
+  PASS  同源地址不再套一层媒体代理
+  PASS  音效关闭时不接管音频图
+  PASS  音效一开就接管音频图（参数全平也算，不再「开了没反应」）
+
+========================================
+  PASS 462 / 463
+  FAILED:
+   - 非音源模块无网络 API（fetch/XHR/WebSocket/EventSource）
+========================================
