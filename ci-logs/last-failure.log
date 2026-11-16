@@ -20,7 +20,7 @@ android-34
 build.py 3.13.7 (24) / manifest 3.13.7 (24)
 == 生成单文件版 ==
 生成 /home/runner/work/lx-music-m/lx-music-m/app/standalone.html
-  大小 442009 B
+  大小 443731 B
   CSS 3 个，脚本 13 个，字体 base64 17484 字符
   剩余外部引用: 无
 == 逻辑冒烟 ==
@@ -120,23 +120,27 @@ build.py 3.13.7 (24) / manifest 3.13.7 (24)
   PASS  曲目带平台标记且无 apiId
   PASS  来源说明含平台名
   PASS  搜索历史写入「夜」
+[LXDIAG][audio] prepareGraph fail(音效未开启)
   PASS  未绑定音源时播放被拦截
   PASS  导入测试音源成功
   PASS  音源按 sources 声明自动匹配酷我
   PASS  平台验证通过
   PASS  未声明的平台不会误匹配
+[LXDIAG][audio] prepareGraph fail(音效未开启)
   PASS  绑定后平台曲目走在线收听
   PASS  平台曲目播放队列已建立
   PASS  结果页显示条数
   PASS  多选栏出现
   PASS  全选生效
   PASS  退出多选清空选择
+[LXDIAG][audio] prepareGraph fail(音效未开启)
   PASS  点曲目行开始播放
   PASS  播放队列已建立
   PASS  PlayerBar 显示当前曲目名
   PASS  PlayerBar 显示暂停图标
   PASS  点暂停后 PlayerBar 恢复播放图标
   PASS  再次点按恢复播放
+[LXDIAG][audio] prepareGraph fail(音效未开启)
   PASS  下一首切换队列索引
   PASS  播放模式循环
   PASS  播放速率切换
@@ -190,7 +194,9 @@ build.py 3.13.7 (24) / manifest 3.13.7 (24)
   PASS  RIFF 长度字段正确
   PASS  onDeviceSaved 记录落盘路径
   PASS  「保存到设备」按钮可重新交付文件
+[LXDIAG][audio] prepareGraph fail(音效未开启)
   PASS  离线模式下已下载曲目可播放
+[LXDIAG][audio] prepareGraph fail(音效未开启)
   PASS  离线模式拦截未下载曲目
 
 === 7. 队列状态机：暂停 / 继续 / 取消 / 重试 / 移除 / 清理 ===
@@ -237,6 +243,7 @@ build.py 3.13.7 (24) / manifest 3.13.7 (24)
   PASS  下载字节是真实 RIFF/WAVE 音频
   PASS  搜索页按平台结果渲染
   PASS  搜索结果显示平台来源说明
+[LXDIAG][audio] prepareGraph fail(音效未开启)
   PASS  自定义音源曲目走在线收听（engine.mode=stream）
   PASS  在线音频元素已设置播放地址
   PASS  下载任务按音源格式完成
@@ -277,6 +284,7 @@ build.py 3.13.7 (24) / manifest 3.13.7 (24)
   PASS  目录浮层给底部播放条让位
   PASS  排行榜主页不再把曲目铺在下面
   PASS  同一音源也自动服务酷狗
+[LXDIAG][audio] prepareGraph fail(音效未开启)
   PASS  有音源提供地址时榜单可播放
   PASS  五个平台都有榜单目录
   PASS  切到酷我后仍渲染榜单卡片
@@ -500,10 +508,31 @@ build.py 3.13.7 (24) / manifest 3.13.7 (24)
   PASS  顺序播放到底时剩余为 0 首
   PASS  随机模式不预告具体下一首
   PASS  单曲循环提示播完重来
+[LXDIAG][audio] prepareGraph fail(音效未开启)
+[LXDIAG][audio] prepareGraph fail(音效未开启)
+[LXDIAG][audio] prepareGraph fail(音效未开启)
+[LXDIAG][audio] prepareGraph fail(音效未开启)
+[LXDIAG][audio] prepareGraph fail(音效未开启)
+[LXDIAG][audio] prepareGraph fail(音效未开启)
+[LXDIAG][audio] prepareGraph fail(音效未开启)
+[LXDIAG][audio] prepareGraph fail(音效未开启)
+[LXDIAG][audio] prepareGraph fail(音效未开启)
+[LXDIAG][audio] prepareGraph fail(音效未开启)
+[LXDIAG][audio] prepareGraph fail(音效未开启)
+[LXDIAG][audio] prepareGraph fail(音效未开启)
+[LXDIAG][audio] prepareGraph fail(音效未开启)
+[LXDIAG][audio] prepareGraph fail(音效未开启)
+[LXDIAG][audio] prepareGraph fail(音效未开启)
+[LXDIAG][audio] prepareGraph fail(音效未开启)
+[LXDIAG][audio] prepareGraph fail(音效未开启)
+[LXDIAG][audio] prepareGraph fail(音效未开启)
+[LXDIAG][audio] prepareGraph fail(音效未开启)
+[LXDIAG][audio] prepareGraph fail(音效未开启)
   PASS  随机播放 20 次都不会停在原曲
   PASS  队列页列出全部 5 首
   PASS  队列页高亮当前曲目
   PASS  队列页显示总首数与当前位置
+[LXDIAG][audio] prepareGraph fail(音效未开启)
   PASS  点选队列任一曲目即切换
   PASS  切换后详情页同步到第 2 首
 
@@ -531,6 +560,7 @@ build.py 3.13.7 (24) / manifest 3.13.7 (24)
   PASS  已完成任务整行就是播放按钮（不用另找按钮）
   PASS  不再单独放「播放」按钮
   PASS  行内仍有移除按钮
+[LXDIAG][audio] prepareGraph fail(音效未开启)
   PASS  已下载曲目改播本地文件（不再回头向音源要地址）
   PASS  本地地址带上了落盘路径
   PASS  同源地址不再套一层媒体代理
