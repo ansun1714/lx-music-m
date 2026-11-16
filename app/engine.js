@@ -62,22 +62,103 @@
     this._timer = null;
   }
 
+  /* 释放当前 AudioContext 上的所有节点引用。
+   * MediaElementSource 无法撤销，只能随 <audio> 元素一起丢弃；这里只断开引用，
+   * 真正的元素替换发生在 _createEl / rebuild。 */
+  AudioEngine.prototype._dropCtx = function () {
+    if (window.LXSound && typeof window.LXSound.teardown === 'function') {
+      try { window.LXSound.teardown(); } catch (e) { this._lastError = 'sound teardown: ' + e; }
+    }
+    if (this.mediaSrc) { try { this.mediaSrc.disconnect(); } catch (e) {} this.mediaSrc = null; }
+    if (this.gain) { try { this.gain.disconnect(); } catch (e) {} this.gain = null; }
+    this.input = null;
+    this.ctx = null;
+    this._graphMounted = false;
+    this._ctxGen = (this._ctxGen || 0) + 1;
+  };
+
+  AudioEngine.prototype.ctxAlive = function () {
+    return !!(this.ctx && this.ctx.state !== 'closed');
+  };
+
   AudioEngine.prototype._ensureCtx = function () {
+    /* P0-1：不能只看「ctx 是否存在」。closed 的上下文再 createMediaElementSource/connect
+     * 都是无效操作（不报错、只是没声音/没效果），必须先丢弃再重建。 */
+    /* P0-4：图挂载改成可重试 —— 每次接图前都走 ensureMounted()，不再一次性决定。 */
+    if (this.ctx && this.ctx.state === 'closed') this._dropCtx();
     if (this.ctx) return;
     var AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return;
-    try { this.ctx = new AC(); } catch (e) { this.ctx = null; return; }
+    if (!AC) { this._lastError = 'Web Audio 不可用'; return; }
+    try { this.ctx = new AC(); } catch (e) {
+      this.ctx = null;
+      this._lastError = 'AudioContext 创建失败: ' + (e && e.message || e);
+      return;
+    }
+    this._ctxGen = (this._ctxGen || 0) + 1;
     this.gain = this.ctx.createGain();
     this.gain.gain.value = this.volume;
     this.input = this.gain;
-    /* 音效链：gain → 10 段 EQ → 干/湿混响 → 环绕 → destination。
-     * 没有音效模块（或图建失败）时直连，保证永远能出声。 */
-    var mounted = false;
-    if (window.LXSound && typeof window.LXSound.mount === 'function') {
-      try { mounted = window.LXSound.mount(this.ctx, this.gain, this.ctx.destination); }
-      catch (e) { mounted = false; }
+    this.ensureMounted();
+  };
+
+  /* 建立/修复 音效链：gain → EQ → 干湿 → 环绕 → destination。
+   * 事务式：LXSound.mount() 内部整体建好才接线，失败时由这里直连 destination 兜底。 */
+  AudioEngine.prototype.ensureMounted = function () {
+    if (!this.ctx || this.ctx.state === 'closed' || !this.gain) return false;
+    var S = window.LXSound;
+    var mountedCtx = (S && typeof S.mountedCtx === 'function') ? S.mountedCtx() : null;
+    /* 图属于旧上下文 / 已被销毁：先清干净，避免跨上下文连节点（P0-2） */
+    if (this._graphMounted && mountedCtx !== this.ctx) {
+      try { if (S && S.teardown) S.teardown(); } catch (e) {}
+      try { this.gain.disconnect(); } catch (e) {}
+      this._graphMounted = false;
     }
-    if (!mounted) this.gain.connect(this.ctx.destination);
+    if (this._graphMounted && mountedCtx === this.ctx) return true;
+    var mounted = false;
+    if (S && typeof S.mount === 'function') {
+      try { mounted = S.mount(this.ctx, this.gain, this.ctx.destination); }
+      catch (e) { mounted = false; this._lastError = 'sound mount: ' + (e && e.message || e); }
+    }
+    this._graphMounted = !!mounted;
+    if (!mounted) {
+      /* 音效链不可用时保证基础出声（旁路，不是 error） */
+      try { this.gain.connect(this.ctx.destination); } catch (e) {}
+    }
+    return this._graphMounted;
+  };
+
+  /* 统一状态查询（P0-3 的判定依据）：不看「对象是否存在」，看上下文与挂载是否真的可用 */
+  AudioEngine.prototype.isGraphBound = function () {
+    return !!(this.mediaSrc && this.ctx && this.ctx.state !== 'closed' && this._graphMounted);
+  };
+
+  AudioEngine.prototype.isGraphHealthy = function () {
+    if (!this.mediaSrc) return false;
+    if (!this.ctx || this.ctx.state === 'closed') return false;
+    if (!this._graphMounted) return false;
+    var S = window.LXSound;
+    if (S && typeof S.mountedCtx === 'function' && S.mountedCtx() !== this.ctx) return false;
+    return true;
+  };
+
+  AudioEngine.prototype.getAudioStatus = function () {
+    var S = window.LXSound;
+    var st = (S && typeof S.state === 'function') ? S.state() : null;
+    return {
+      mode: this.mode,
+      ctxAlive: this.ctxAlive(),
+      ctxState: this.ctx ? this.ctx.state : 'none',
+      mediaBound: !!this.mediaSrc,
+      mounted: !!this._graphMounted,
+      bound: this.isGraphBound(),
+      graphHealthy: this.isGraphHealthy(),
+      eqOn: !!(st && st.enabled),
+      reverbOn: !!(st && st.enabled && st.reverb !== 'none'),
+      surroundOn: !!(st && st.enabled && st.surround),
+      degraded: !!this._graphFallback,
+      lastError: this._lastError || '',
+      ctxGen: this._ctxGen || 0
+    };
   };
 
   // 生成一条与曲目时长一致的柔和音轨（正弦叠加 + 缓慢包络）
@@ -267,15 +348,16 @@
       if (self.onError) self.onError('音频加载失败');
     });
     var useGraph = this.wantGraph(ref);
-    if (useGraph) {
-      this._ensureCtx();
-      if (this.ctx) {
-        try {
-          this.mediaSrc = this.ctx.createMediaElementSource(nx);
-          this.mediaSrc.connect(this.gain);
-          nx.volume = 1;
-        } catch (e) { this.mediaSrc = null; nx.volume = this.volume; }
-      } else nx.volume = this.volume;
+    if (useGraph && this.ensureMounted()) {
+      try {
+        this.mediaSrc = this.ctx.createMediaElementSource(nx);
+        this.mediaSrc.connect(this.gain);
+        nx.volume = 1;
+      } catch (e) {
+        this.mediaSrc = null;
+        this._lastError = 'MediaElementSource 创建失败: ' + (e && e.message || e);
+        nx.volume = this.volume;
+      }
     } else {
       this.mediaSrc = null;
       nx.volume = this.volume;
@@ -378,18 +460,14 @@
     this._lastUrl = url;
     this._lastRef = ref;
 
-    if (useGraph) {
-      this._ensureCtx();
-      if (this.ctx) {
-        try {
-          this.mediaSrc = this.ctx.createMediaElementSource(el);
-          this.mediaSrc.connect(this.gain);
-          el.volume = 1;
-        } catch (e) {
-          this.mediaSrc = null;
-          el.volume = this.volume;
-        }
-      } else {
+    if (useGraph && this.ensureMounted()) {
+      try {
+        this.mediaSrc = this.ctx.createMediaElementSource(el);
+        this.mediaSrc.connect(this.gain);
+        el.volume = 1;
+      } catch (e) {
+        this.mediaSrc = null;
+        this._lastError = 'MediaElementSource 创建失败: ' + (e && e.message || e);
         el.volume = this.volume;
       }
     } else {
@@ -455,7 +533,8 @@
        * sound-effects 的 apply() 在关闭状态下会把 EQ 各段增益置 0、湿声置 0，
        * 音频图本身就是「原样放行」——留着它就是干净的旁路。
        * 换元素要摘 src、重建解码器，实测会卡 1~2 秒没声音（用户看到的「关一下就没声了」）。 */
-      if (this.mediaSrc) return true;
+      /* P0-5：只有「图确实健康」才能把旁路当成正常；ctx closed / 跨上下文 / 断链时必须重建 */
+      if (this.mediaSrc && this.isGraphHealthy()) return true;
     }
     if (want && base.kind === 'stream' && /^https?:/i.test(String(origin))) {
       if (this._blobPending === origin) return true;      // 正在缓存，别重复发起

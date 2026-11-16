@@ -42,7 +42,7 @@
 
   var ctx = null, inputNode = null, outNode = null;
   var eqNodes = [], dryGain = null, wetGain = null, mixGain = null;
-  var convolver = null, panner = null, mounted = false;
+  var convolver = null, panner = null, mounted = false, mountedCtx = null;
   var surroundTimer = null, angle = 0, lastIR = '';
   var listeners = [];
 
@@ -81,16 +81,23 @@
   }
 
   // ---------------------------------------------------------------- 音频图
-  /* 程序生成脉冲响应：噪声 × 指数衰减。官方用的是真实 IR 文件，这里避免引入外部资源。 */
-  function makeIR(seconds, decay) {
+  /* 程序生成脉冲响应：噪声 × 指数衰减。官方用的是真实 IR 文件，这里避免引入外部资源。
+   * v3.13.4：改用固定种子（同一档位每次听感一致）+ 按档位缓存，切混响不再实时算几十万采样。 */
+  var irCache = {};
+  function makeIR(seconds, decay, seed) {
     var rate = ctx.sampleRate;
     var len = Math.max(1, Math.floor(rate * seconds));
     var buf = ctx.createBuffer(2, len, rate);
+    var r = seed || 1;
+    function rnd() {                       // 线性同余，确定性且足够"白"
+      r = (r * 1103515245 + 12345) & 0x7fffffff;
+      return (r / 0x7fffffff) * 2 - 1;
+    }
     for (var ch = 0; ch < 2; ch++) {
       var d = buf.getChannelData(ch);
       for (var i = 0; i < len; i++) {
         var t = i / len;
-        d[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, decay) * (1 - t * 0.2);
+        d[i] = rnd() * Math.pow(1 - t, decay) * (1 - t * 0.2);
       }
     }
     return buf;
@@ -102,12 +109,14 @@
     if (rv.id === 'none') {
       wetGain.gain.value = 0;
       dryGain.gain.value = 1;
+      if (lastIR !== 'none') { try { convolver.buffer = null; } catch (e) {} }  // 关闭时释放 IR
       lastIR = 'none';
       return;
     }
     if (lastIR !== rv.id) {
       try {
-        convolver.buffer = makeIR(rv.sec, rv.decay);
+        if (!irCache[rv.id]) irCache[rv.id] = makeIR(rv.sec, rv.decay, rv.id.charCodeAt(0) + 977);
+        convolver.buffer = irCache[rv.id];
       } catch (e) { /* 生成失败就当作关闭 */ }
       lastIR = rv.id;
     }
@@ -144,53 +153,76 @@
     } catch (e) {}
   }
 
-  /* engine 建立 AudioContext 后调用：input → EQ → 干/湿 → 环绕 → destination */
+  /* 释放整条效果链（幂等）。engine 换 AudioContext / 重建图前必须调用，
+   * 否则旧上下文节点会被反复复用（跨上下文连接 = 静默失效）。 */
+  function teardown() {
+    stopPanner();
+    try {
+      if (eqNodes) for (var i = 0; i < eqNodes.length; i++) eqNodes[i].disconnect();
+      if (dryGain) dryGain.disconnect();
+      if (wetGain) wetGain.disconnect();
+      if (mixGain) mixGain.disconnect();
+      if (convolver) convolver.disconnect();
+      if (panner) panner.disconnect();
+    } catch (e) {}
+    eqNodes = [];
+    dryGain = wetGain = mixGain = convolver = panner = null;
+    inputNode = null;
+    ctx = null;
+    mountedCtx = null;
+    mounted = false;
+    lastIR = '';
+  }
+
+  /* engine 建立 AudioContext 后调用：input → EQ → 干/湿 → 环绕 → destination
+   * 事务式：先在局部变量里把整图建好，全部成功才接线；失败不留半连接的节点。 */
   function mount(audioCtx, input, output) {
     if (!audioCtx || !input) return false;
-    if (mounted && ctx === audioCtx) return true;
+    if (mounted && ctx === audioCtx && mountedCtx === audioCtx) return true;
+    if (mounted || (ctx && ctx !== audioCtx)) teardown();
+    var eqs = null, dry = null, wet = null, mix = null, conv = null, pan = null;
+    try {
+      eqs = FREQS.map(function (f) {
+        var n = audioCtx.createBiquadFilter();
+        n.type = 'peaking';
+        n.frequency.value = f;
+        n.Q.value = 1.4;
+        n.gain.value = 0;
+        return n;
+      });
+      dry = audioCtx.createGain(); wet = audioCtx.createGain(); mix = audioCtx.createGain();
+      conv = audioCtx.createConvolver();
+      pan = audioCtx.createPanner();
+      pan.panningModel = 'HRTF';
+      pan.distanceModel = 'inverse';
+      pan.refDistance = 1;
+      pan.rolloffFactor = 1;
+      input.connect(eqs[0]);
+      for (var i = 0; i < eqs.length - 1; i++) eqs[i].connect(eqs[i + 1]);
+      var last = eqs[eqs.length - 1];
+      last.connect(dry); dry.connect(mix);
+      last.connect(conv); conv.connect(wet); wet.connect(mix);
+      mix.connect(pan);
+      pan.connect(output || audioCtx.destination);
+    } catch (e) {
+      try {
+        if (eqs) for (var j = 0; j < eqs.length; j++) eqs[j].disconnect();
+        if (dry) dry.disconnect(); if (wet) wet.disconnect(); if (mix) mix.disconnect();
+        if (conv) conv.disconnect(); if (pan) pan.disconnect();
+        if (input && typeof input.disconnect === 'function') input.disconnect();
+      } catch (e2) {}
+      mounted = false;
+      mountedCtx = null;
+      return false;
+    }
+    eqNodes = eqs; dryGain = dry; wetGain = wet; mixGain = mix; convolver = conv; panner = pan;
     ctx = audioCtx;
     inputNode = input;
     outNode = output || audioCtx.destination;
-    try {
-      if (!eqNodes.length) {
-        eqNodes = FREQS.map(function (f) {
-          var n = ctx.createBiquadFilter();
-          n.type = 'peaking';
-          n.frequency.value = f;
-          n.Q.value = 1.4;
-          n.gain.value = 0;
-          return n;
-        });
-      }
-      if (!dryGain) {
-        dryGain = ctx.createGain();
-        wetGain = ctx.createGain();
-        mixGain = ctx.createGain();
-        convolver = ctx.createConvolver();
-        panner = ctx.createPanner();
-        panner.panningModel = 'HRTF';
-        panner.distanceModel = 'inverse';
-        panner.refDistance = 1;
-        panner.rolloffFactor = 1;
-      }
-      // 输入 → 10 段 EQ
-      inputNode.connect(eqNodes[0]);
-      for (var i = 0; i < eqNodes.length - 1; i++) eqNodes[i].connect(eqNodes[i + 1]);
-      var last = eqNodes[eqNodes.length - 1];
-      // 干声 / 湿声
-      last.connect(dryGain); dryGain.connect(mixGain);
-      last.connect(convolver); convolver.connect(wetGain); wetGain.connect(mixGain);
-      // 干湿混合 → 环绕 → 输出
-      mixGain.connect(panner);
-      panner.connect(outNode);
-      mounted = true;
-      apply();
-      return true;
-    } catch (e) {
-      // 图建不起来时由调用方直连，避免重复连接导致音量翻倍
-      mounted = false;
-      return false;
-    }
+    mounted = true;
+    mountedCtx = audioCtx;
+    apply();
+    return true;
   }
 
   function apply() {
@@ -272,6 +304,8 @@
     describe: describe,
     mount: mount,
     mounted: function () { return mounted; },
+    mountedCtx: function () { return mountedCtx; },
+    teardown: teardown,
     setEnabled: setEnabled,
     setPreset: setPreset,
     setBand: setBand,

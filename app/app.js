@@ -1412,9 +1412,19 @@
    * v3.13.1：用 engine.wantGraph() 判定（在线音源只有在参数真非平时才改接音频图）。 */
   function syncAudioGraph() {
     var want = engine.wantGraph ? engine.wantGraph(engine._lastRef) : false;
-    var has = !!(engine.el && engine.mediaSrc);
-    if (want === has) return;
+    var bound = engine.isGraphBound ? engine.isGraphBound() : !!(engine.el && engine.mediaSrc);
     if (!engine.el) return;
+    /* P0-3：图「看着在」但实际已失效（Context closed / 跨上下文 / 节点断链）时，
+     * 先原地重挂一次；修好再按 want/bound 决定是否重建，不再拿对象引用当健康证明。 */
+    if (bound && engine.isGraphHealthy && !engine.isGraphHealthy()) {
+      try { engine.ensureMounted(); } catch (e) {}
+      bound = engine.isGraphBound ? engine.isGraphBound() : bound;
+      if (!bound) {
+        try { engine.rebuild(); } catch (e2) { if (Snd) Snd.setEnabled(false); }
+        return;
+      }
+    }
+    if (want === bound) return;
     try {
       engine.rebuild();
     } catch (e) {
