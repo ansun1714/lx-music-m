@@ -20,7 +20,7 @@ android-34
 build.py 3.13.7 (24) / manifest 3.13.7 (24)
 == 生成单文件版 ==
 生成 /home/runner/work/lx-music-m/lx-music-m/app/standalone.html
-  大小 441700 B
+  大小 442009 B
   CSS 3 个，脚本 13 个，字体 base64 17484 字符
   剩余外部引用: 无
 == 逻辑冒烟 ==
