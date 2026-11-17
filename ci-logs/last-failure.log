@@ -20,7 +20,7 @@ android-34
 build.py 3.13.7 (24) / manifest 3.13.7 (24)
 == 生成单文件版 ==
 生成 /home/runner/work/lx-music-m/lx-music-m/app/standalone.html
-  大小 452700 B
+  大小 453924 B
   CSS 3 个，脚本 13 个，字体 base64 17484 字符
   剩余外部引用: 无
 == 逻辑冒烟 ==
@@ -357,7 +357,6 @@ build.py 3.13.7 (24) / manifest 3.13.7 (24)
   PASS  进度 100%
   PASS  记录落盘路径
   PASS  原生下载后不再显示「保存到设备」
-[LXDIAG][lyric] 平台内置/kw => fail 返回空
   PASS  取消任务会中断原生下载
   PASS  下载失败记录原因
   PASS  失败任务可重试
@@ -384,7 +383,6 @@ build.py 3.13.7 (24) / manifest 3.13.7 (24)
   PASS  任务上留下降级说明
   PASS  下载页显示「母带音质 → 无损音质」
   PASS  导入全档失败源
-[LXDIAG][lyric] 平台内置/kw => fail 返回空
   PASS  全档失败时任务标为 error
   PASS  错误说明列出尝试过的档位
   PASS  批量下载先弹品质菜单
