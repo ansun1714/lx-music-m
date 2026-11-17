@@ -2406,8 +2406,17 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
       if (box && S._lyr) Lyr.sync(box, S._lyr, pos);
       var tr = currentTrack();
       if (tr) S.progress[tr.id] = pos;
+      /* 引擎真实状态与界面镜像不一致时以引擎为准（自动播放被拒 / 外部暂停等） */
+      if (!!S.playing !== !!engine.playing) {
+        S.playing = !!engine.playing;
+        renderPlayer();
+      }
     };
     engine.onEnded = function () { S.playing = false; nextTrack(true); };
+    engine.onStateChange = function (playing) {
+      S.playing = !!playing;
+      renderPlayer();
+    };
     engine.onError = function (msg) { toast(msg); S.playing = false; renderPlayer(); };
     // 音频服务器不允许跨域时，音效会让浏览器静音；此时自动退回原生播放并说明
     engine.onGraphFallback = function () {

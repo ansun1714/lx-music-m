@@ -63,6 +63,8 @@
     this.track = null;
     this.onTick = null;
     this.onEnded = null;
+    this.onStateChange = null;
+    this._pauseMiss = 0;
     this._timer = null;
   }
 
@@ -810,10 +812,23 @@
     if (!this._timer) {
       this._timer = setInterval(function () {
         if (!self.playing) return;
-        /* 自愈：元素已加载却被暂停（换元素时被自动播放策略拦下），再推一次 play() */
+        /* 元素被外部（灵动岛 / 系统媒体控件 / 锁屏）暂停时，不能反复重放把暂停抢回来；
+         * 连续两拍仍暂停，就认定是外部暂停，同步内部状态并通知 UI。 */
         if (self.el && self.el.paused && self.el.readyState >= 2) {
-          var q = self.el.play();
-          if (q && q.catch) q.catch(function () {});
+          self._pauseMiss = (self._pauseMiss || 0) + 1;
+          if (self._pauseMiss < 2) {
+            var q = self.el.play();
+            if (q && q.catch) q.catch(function () {});
+          } else {
+            self.playing = false;
+            self.offset = self.position();
+            self._pauseMiss = 0;
+            try { if (self.el) self.el.pause(); } catch (e) {}
+            if (self._timer) { clearInterval(self._timer); self._timer = null; }
+            if (self.onStateChange) self.onStateChange(false);
+          }
+        } else {
+          self._pauseMiss = 0;
         }
         if (self.onTick) self.onTick(self.position(), self.duration);
         if (self.position() >= self.duration) self._ended();
