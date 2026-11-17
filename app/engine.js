@@ -88,6 +88,25 @@
     return !!(this.ctx && this.ctx.state !== 'closed');
   };
 
+  /* 把 <audio> 的关键事件写进诊断缓冲：真机排查「放一秒停一会儿」时，
+     区分是网络缓冲不足（waiting/stalled 反复）还是 pause/play 事件在来回抢状态。 */
+  AudioEngine.prototype._attachDiag = function (el, tag) {
+    if (!el) return;
+    ['waiting', 'stalled', 'playing', 'pause', 'play', 'canplay', 'ended', 'error', 'loadedmetadata']
+      .forEach(function (ev) {
+        el.addEventListener(ev, function () {
+          var buf = '-';
+          try {
+            if (el.buffered && el.buffered.length) {
+              buf = Math.round(el.buffered.end(el.buffered.length - 1)) + 's';
+            }
+          } catch (e) {}
+          dlog('audio', tag + ' ' + ev + ' t=' + (el.currentTime || 0).toFixed(1) +
+            ' rs=' + el.readyState + ' paused=' + el.paused + ' buf=' + buf);
+        });
+      });
+  };
+
   AudioEngine.prototype._ensureCtx = function () {
     /* P0-1：不能只看「ctx 是否存在」。closed 的上下文再 createMediaElementSource/connect
      * 都是无效操作（不报错、只是没声音/没效果），必须先丢弃再重建。 */
@@ -547,6 +566,7 @@
     nx.addEventListener('error', function () {
       if (self.onError) self.onError('音频加载失败');
     });
+    this._attachDiag(nx, 'blob');
     var useGraph = this.wantGraph(ref);
     if (useGraph && this.ensureMounted()) {
       try {
@@ -659,6 +679,7 @@
       }
     }
     el.src = url;
+    this._attachDiag(el, 'el');
     el.addEventListener('ended', function () { self._ended(); });
     /* 元素被外部（灵动岛 / 系统媒体控件 / 锁屏）暂停或恢复时，事件即时同步内部状态，
      * 不等 250ms 轮询；自己调 pause() 会先把 playing 置 false，这里不会误触发。 */
@@ -739,6 +760,12 @@
     this._blobPending = null;
     this._wantBlob = null;
     this._ending = false;
+    try {
+      var lu = String((ref && (ref.url || ref.localUrl)) || '');
+      var lhost = lu.replace(/^https?:\/\//, '').split('/')[0];
+      dlog('audio', 'load platform=' + (track.platform || '-') + ' host=' + (lhost || '-') +
+        ' mime=' + (ref && ref.mime || '-') + ' kind=' + (ref && ref.kind || '-'));
+    } catch (e) {}
     if (this.onTick) this.onTick(0, this.duration);
     return new Promise(function (resolve) {
       if (ref && (ref.kind === 'downloaded' || ref.kind === 'stream') && (ref.localUrl || ref.url)) {

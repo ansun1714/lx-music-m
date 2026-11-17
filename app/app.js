@@ -1066,7 +1066,8 @@
     h += '<div class="fx-row"><div class="fx-label"><b>3D 环绕</b><span>声音绕听者缓慢旋转</span></div>' +
       '<label class="switch"><input type="checkbox" data-act="fx-surround"' + (st.surround ? ' checked' : '') + '><i></i></label></div>';
     h += '<div class="fx-row"><div class="fx-label"><b>音频图自检</b><span id="fxDiag">点右侧按钮查看 audio 链路真实状态</span></div>' +
-      '<button class="btn sm" data-act="fx-diag">检测</button></div>';
+      '<button class="btn sm" data-act="fx-diag">检测</button>' +
+      '<button class="btn sm" data-act="log-export">导出日志</button></div>';
     h += '<div class="fx-sec"><div class="fx-title">均衡器 <em>±12 dB</em></div>' +
       Snd.FREQS.map(function (f, i) {
         var v = st.eq[i];
@@ -1302,11 +1303,16 @@
     if (local) prep = Promise.resolve({ kind: 'downloaded', localUrl: local });
     else prep = SR.playableUrl(tr, S.settings.audioQuality || '128k')
       .then(function (m) {
-        return m ? {
+        if (!m) return null;
+        var hd = (m.media && m.media.headers) || null;
+        var host = String(m.url || '').replace(/^https?:\/\//, '').split('/')[0];
+        try { LXdlog('play', 'resolved host=' + host + ' mime=' + (m.mime || '-') +
+          ' headers=' + (hd ? Object.keys(hd).join(',') : '-')); } catch (e) {}
+        return {
           kind: 'stream', url: m.url, mime: m.mime,
           // 部分音源要求带 Referer / UA 才能取到音频字节，交给原生媒体代理透传
-          headers: (m.media && m.media.headers) || null
-        } : null;
+          headers: hd
+        };
       })
       .catch(function () { return null; });
     prep.then(function (ref) {
@@ -2354,6 +2360,21 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
       'graphHost=' + (st.graphHost || '-') + ' lite=' + st.liteUrl + ' pending=' + !!st.blobPending,
       'lastError=' + (st.lastError || '(无)')
     ]));
+
+    var elLines = [];
+    if (engine.el) {
+      var e = engine.el, bufEnd = '-';
+      try { if (e.buffered && e.buffered.length) bufEnd = Math.round(e.buffered.end(e.buffered.length - 1)) + 's'; } catch (er) {}
+      var raw = String(engine._rawUrl || engine._lastUrl || '');
+      elLines.push('srcHost=' + (raw ? raw.replace(/^https?:\/\//, '').split('/')[0] : '-'));
+      elLines.push('mime=' + (engine.mediaMime || '-') + ' currentTime=' + (e.currentTime || 0).toFixed(1) +
+        ' duration=' + (isFinite(e.duration) ? Math.round(e.duration) : '-') + 's');
+      elLines.push('readyState=' + e.readyState + ' paused=' + e.paused + ' buffered=' + bufEnd +
+        ' volume=' + e.volume.toFixed(2) + ' rate=' + e.playbackRate);
+    } else {
+      elLines.push('(无活动 audio 元素，mode=' + (st.mode || '-') + ')');
+    }
+    out.push(diagSection('音频元素', elLines));
     out.push(diagSection('音效状态', [
       'enabled=' + snd.enabled + ' preset=' + snd.preset + ' reverb=' + snd.reverb,
       'surround=' + !!snd.surround + ' eq=' + JSON.stringify(snd.eq)
