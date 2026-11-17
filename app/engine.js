@@ -117,10 +117,16 @@
     if (!this._stallWin || now - this._stallWin.t0 > 15000) this._stallWin = { n: 0, t0: now };
     this._stallWin.n++;
     /* 15 秒内卡 3 次以上 = 上游吞吐连实时都跟不上（真机日志里酷我代理约 0.2~0.3 倍速）。
-     * 这种源上再并发取整段字节只会让两条流互相饿死，标记慢流后不再抢带宽。 */
-    if (this._stallWin.n >= 3 && !this._slowStream) {
+     * 这种源上再并发取整段字节只会让两条流互相饿死：标记慢流、放弃这次取字节，
+     * 并立刻恢复原生播放 —— 否则用户看到的就是「一开音效就彻底没声」（556798d 真机实测）。 */
+    if (this._stallWin.n >= 3) {
+      if (!this._slowStream) dlog('audio', 'slow-stream：上游吞吐不足实时（15s 内 ' +
+        this._stallWin.n + ' 次卡顿），放弃并发取整段');
       this._slowStream = true;
-      dlog('audio', 'slow-stream：上游吞吐不足实时（15s 内 ' + this._stallWin.n + ' 次卡顿），不再并发取整段');
+      this._wantBlob = null;
+      this._blobPending = null;
+      this._releaseStallHold(true);
+      return;
     }
     if (!this._blobPending || this._stallHold) return;
     if (this._stallWin.n < 2) return;
@@ -128,6 +134,17 @@
     dlog('audio', 'stall-hold：原生在线播放连续卡顿，暂停让路给取字节 pending=' +
       String(this._blobPending).slice(0, 70));
     try { el.pause(); } catch (e) {}
+    /* 兜底：3 秒内字节没到就恢复出声。慢源上整段取字节可能要几分钟，
+     * 无限期压着只会让人以为播放器死了。 */
+    var self = this;
+    if (this._holdTimer) clearTimeout(this._holdTimer);
+    this._holdTimer = setTimeout(function () {
+      self._holdTimer = null;
+      if (self._stallHold) {
+        dlog('audio', 'stall-hold 超时 3s 未取到字节，恢复原生播放');
+        self._releaseStallHold(true);
+      }
+    }, 3000);
   };
 
   /* 解除「让路」状态：取字节失败或需要退回原生时，必须把元素重新放起来，
@@ -136,6 +153,7 @@
     var held = this._stallHold;
     this._stallHold = false;
     this._stallWin = null;
+    if (this._holdTimer) { clearTimeout(this._holdTimer); this._holdTimer = null; }
     if (!held || !resume) return;
     if (this.playing && this.el && this.el.paused) {
       var q = this.el.play();
@@ -818,6 +836,7 @@
     this._stallHold = false;
     this._stallWin = null;
     this._slowStream = false;
+    if (this._holdTimer) { clearTimeout(this._holdTimer); this._holdTimer = null; }
     try {
       var lu = String((ref && (ref.url || ref.localUrl)) || '');
       var lhost = lu.replace(/^https?:\/\//, '').split('/')[0];
@@ -984,6 +1003,7 @@
     this._stallHold = false;
     this._stallWin = null;
     this._slowStream = false;
+    if (this._holdTimer) { clearTimeout(this._holdTimer); this._holdTimer = null; }
     if (this.el) {
       try { this.el.pause(); } catch (e) {}
       /* v3.13.2：必须把旧 <audio> 的 src 摘掉再 load()，让 WebView 立刻回收它的媒体解码器。

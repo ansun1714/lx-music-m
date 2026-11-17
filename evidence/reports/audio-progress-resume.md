@@ -99,6 +99,39 @@
 - 设备现状：便携 hdc 反复 `kill` 后 `list targets` 仍 `[Empty]`，PnP 无 HDC 设备 → 本轮未装机、未抓日志。
 - 待真机验证：① 设置 →「其他」组第一行应直接看到「诊断日志 · 导出/查看」；② 酷我连切 3~5 首，是否还断续；仍断续则导出日志看 `[audio]` 里 `waiting/stalled` 与 `stall-hold` 记录，区分「限速」还是「解码器被回收」。
 
+## 0f. 2026-11-17 18:04 真机日志分析（`lx-diag-2026-11-17-10-04-35.txt`，10562 B，版本 `556798d`）
+
+**三条结论：换源后酷我问题彻底消失；`556798d` 的 `stall-hold` 在慢源上制造了「开音效就没声」的新回归；QQ 歌词为空是代码里根本没有 tx 分支。**
+
+| 时间 | 平台 / 音源 | host | 结果 |
+|---|---|---|---|
+| 18:01:57 / 18:02:05 / 18:02:14 | kw / 墨澜 | `175.27.166.236:8928` | `stall-hold` 触发 → `el pause paused=true` → 之后只到 `canplay buf=1s`，**再也没有恢复播放**（用户 8 秒后手动切歌） |
+| 18:03:54 起 | kw / 星海 | `yy1.zddyr.top` | `lite=true`、`blob play buf=271s`，秒级就绪、全程顺滑 |
+| 18:02:28 / 18:03:07 | tx / 星海 | `ws.stream.qqmusic.qq.com` | 正常播放 |
+| 18:04:08~18:04:18 | tx / 星海 | — | 连续四首 `后端失败: QQ 音源暂无可用`（星海 tx 后端挂了，上游问题） |
+
+1. **酷我「放一秒停一会儿」= 上游代理吞吐不足，已由换源实证**：同一台手机、同一时刻，墨澜那条 `175.27.166.236:8928` 每 3~6 秒才进 1 秒音频（≈0.2~0.3 倍实时），换星海 `yy1.zddyr.top` 后起播即 `buf=271s`。用户主观确认「换了音乐源，确实酷我的不卡顿了」。客户端不再为慢源做带宽妥协，只保证「慢源上不出现更糟的体验」。
+2. **`556798d` 引入回归：慢源 + 音效 = 彻底没声**。`_onStall` 在连续两次卡顿后 `el.pause()` 让路，但慢源上整段取字节要几分钟，`_releaseStallHold` 只在取字节失败/接管超时才调 → 元素被自己停住后无限期不出声。听感从「断续」恶化成「点了歌没声」。
+3. **QQ 歌词为空是代码缺口**：`platformLyric` 只实现 `wy/kw/mg/kg`，**没有 `tx` 分支**，走到底部 `return Promise.resolve(null)` 且不记 `diagLyric`；`doLyric` 的音源链对 tx 也返回空（音源侧没有可用歌词后端）。日志「歌词诊断 (无)」即此。
+
+**本轮修复（3 处）：**
+
+1. `app/engine.js` `_onStall`：
+   - 15 秒窗口累计 **≥3 次**卡顿即判定慢流：置 `_slowStream`、清 `_blobPending`/`_wantBlob`、`_releaseStallHold(true)` 立刻恢复出声（不再压着不出声）。
+   - ≥2 次的让路分支加 **3 秒兜底定时器**：3 秒内字节没到就 `_releaseStallHold(true)` 恢复原生播放，最长只哑 3 秒。
+   - `_releaseStallHold` 清 `_holdTimer`；`load()`/`stop()` 均复位 `_holdTimer` 与 `_slowStream`（每首歌重新判定，换源后快源不受影响）。
+2. `harmony/entry/src/main/ets/core/EchoBridge.ets` `loadSaveDir()`：**删掉启动期的 `fileShare.activatePermission`**，启动只从 preferences 读 URI 并回推 JS。冷启动弹系统文件管理器的根因就是 `init()` → `loadSaveDir()` 里的这次激活授权（`Index.ets` 的 `.onPageEnd` 注释早已写明该行为，但 `init()` 绕过了它）。授权改到 `saveToDir` 的失败重试分支（EPERM/EACCES/13900042）按需激活。
+3. `app/sources.js`：
+   - 新增 `tx` 内置歌词分支，走 `c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg?songmid=<mid>&format=json&nobase64=1`（`Referer: https://y.qq.com/portal/player.html`）。本机不带 cookie 实测 `retcode=0` 且 `lyric` 为明文 LRC（曲目 `004QC9Z62Z5K6b`「独自去偷欢」取到 2KB 歌词）。
+   - 新增 `parseJsonLoose()`：纯 JSON / JSONP `MusicJsonCallback(...)` / `try{...}catch(e){}` 三种包装依次尝试（腾讯三种都出现过），三种用例离线校验通过。
+   - 新增 `maybeB64Text()`：`nobase64=1` 失效时歌词仍可能是 base64，先判字符集（≥40 字符且仅 base64 字符）再解，明文原样返回（离线校验：明文保持 true / base64 解出 true）。
+   - `platformLyric` 顶部补诊断：缺 `songmid`、平台模块未就绪都记 `diagLyric`，界面「暂无歌词」后面能直接看到原因。
+   - kw 歌词重试从 1 次提升到 **2 次**（700ms / 1500ms 递增），失败 detail 标注「已重试 2 次」。
+
+**离线校验**：`node --check app/sources.js`、`app/engine.js` 通过；`node evidence/audio-graph-tests.js` **PASS=11 FAIL=0**；腾讯歌词接口与解析用例离线验证通过（真机仍未验证）。
+
+**未解 / 上游问题**：星海 tx 后端 18:04 连续四首 `QQ 音源暂无可用`（音源侧，客户端无解）；kg 三条后端全失败（含 krc 未解密）；酷我慢源体验仍取决于用户所选音源。
+
 ## 一、当前测试状态（严格按任务书口径）
 
 | 项 | 状态 |

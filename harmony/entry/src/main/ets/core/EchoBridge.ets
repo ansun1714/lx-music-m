@@ -747,7 +747,13 @@ export class EchoBridge {
     });
   }
 
-  /** 启动时恢复上次选的目录，并重新激活持久化授权 */
+  /**
+   * 启动时恢复上次选的目录。
+   * 注意：这里**只读 preferences 里的 URI 字符串**，绝不调用 fileShare.activatePermission。
+   * 真机实测 activatePermission 会让系统在冷启动时直接弹出文件管理器/授权页，
+   * 而本机又缺少 FolderSelection 能力、目录授权本来就用不上。
+   * 授权推迟到真正要写文件时（saveToDir 的失败重试分支）再做。
+   */
   private loadSaveDir(): void {
     if (this.ctx === null) {
       return;
@@ -758,18 +764,8 @@ export class EchoBridge {
         return;
       }
       this.saveDirUri = uri;
-      fileShare.activatePermission([{
-        uri: uri,
-        operationMode: (fileShare.OperationMode.READ_MODE | fileShare.OperationMode.WRITE_MODE) as fileShare.OperationMode
-      }])
-        .then(() => {
-          hilog.info(DOMAIN, TAG, 'export dir restored: %{public}s', uri);
-          this.runJs('window.LXSaveDir&&window.LXSaveDir.onDir(' + this.jsJson(uri) + ')');
-        })
-        .catch((err: BusinessError) => {
-          hilog.warn(DOMAIN, TAG, 'activate dir permission failed: %{public}s', err.message);
-          this.saveDirUri = '';
-        });
+      hilog.info(DOMAIN, TAG, 'export dir restored (no permission activation)');
+      this.runJs('window.LXSaveDir&&window.LXSaveDir.onDir(' + this.jsJson(uri) + ')');
     }).catch((err: BusinessError) => {
       hilog.warn(DOMAIN, TAG, 'load export dir pref failed: %{public}s', err.message);
     });

@@ -515,6 +515,39 @@
     if (window.LXdlog) window.LXdlog('lyric', src + ' => ' + (ok ? 'ok ' + detail : 'fail ' + detail));
   }
 
+  /* 歌词文本可能是 base64（腾讯老接口在 nobase64=1 失效时仍回 base64）。
+   * 先判字符集再解，避免把本来就是明文的中文/标点当 base64 解出乱码。 */
+  function maybeB64Text(s) {
+    var t = String(s || '').replace(/^\s*|\s*$/g, '');
+    if (t.length < 40) return String(s || '');
+    if (!/^[A-Za-z0-9+/=\r\n]+$/.test(t)) return String(s || '');
+    try {
+      var raw = atob(t.replace(/\r|\n/g, ''));
+      var out = '';
+      for (var i = 0; i < raw.length; i++) out += '%' + ('00' + raw.charCodeAt(i).toString(16)).slice(-2);
+      return decodeURIComponent(out);
+    } catch (e) { return String(s || ''); }
+  }
+
+  /* 歌词响应可能是纯 JSON / JSONP / try{...}catch(e){} 三种包装，按候选依次尝试。
+   * 腾讯老接口三种都出现过，直接 JSON.parse 失败会把「有歌词」误判成「没歌词」。 */
+  function parseJsonLoose(body) {
+    var tries = [body];
+    var i = body.indexOf('{'), j = body.lastIndexOf('}');
+    if (i >= 0 && j > i) tries.push(body.slice(i, j + 1));
+    if (i >= 0) {
+      var k = body.indexOf('}', i + 1);
+      if (k > i) tries.push(body.slice(i, k + 1));
+    }
+    for (var t = 0; t < tries.length; t++) {
+      try {
+        var d = JSON.parse(tries[t]);
+        if (d && typeof d === 'object') return d;
+      } catch (e) {}
+    }
+    return null;
+  }
+
   function normalizeLyric(res) {
     if (!res) return null;
     if (typeof res === 'string') return res.trim() ? { lyric: res, tlyric: '' } : null;
@@ -584,7 +617,14 @@
     var plat = track.platform || String(track.id || '').split('_')[0];
     var mid = track.songmid || String(track.id || '').replace(/^[a-z]+_/, '');
     var LP = window.LXPlatform;
-    if (!mid || !LP || typeof LP.httpJson !== 'function') return Promise.resolve(null);
+    if (!mid) {
+      diagLyric('平台内置/' + plat, false, '缺少 songmid（id=' + String(track.id || '') + '）');
+      return Promise.resolve(null);
+    }
+    if (!LP || typeof LP.httpJson !== 'function') {
+      diagLyric('平台内置/' + plat, false, '平台模块未就绪');
+      return Promise.resolve(null);
+    }
     if (plat === 'wy') {
       return LP.httpJson('https://music.163.com/api/song/lyric?id=' + encodeURIComponent(mid) + '&lv=-1&kv=-1&tv=-1',
         { headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10)', Referer: 'https://music.163.com/' } })
@@ -613,12 +653,22 @@
             }).join('\n');
           });
       }
-      return kwFetch().catch(function () {
-        return new Promise(function (resolve) { setTimeout(resolve, 700); }).then(kwFetch);
-      }).then(function (lrc) {
+      var lastErr = null;
+      function kwRetry(n, wait) {
+        return kwFetch().catch(function (e) {
+          lastErr = e;
+          if (n <= 0) throw e;
+          return new Promise(function (resolve) { setTimeout(resolve, wait); })
+            .then(function () { return kwRetry(n - 1, wait + 800); });
+        });
+      }
+      return kwRetry(2, 700).then(function (lrc) {
         diagLyric('平台内置/kw', true, lrc.length + ' 字');
         return { lyric: lrc, tlyric: '' };
-      }).catch(function (e) { diagLyric('平台内置/kw', false, (e && e.message) || e); return null; });
+      }).catch(function (e) {
+        diagLyric('平台内置/kw', false, ((lastErr && lastErr.message) || (e && e.message) || e) + '（已重试 2 次）');
+        return null;
+      });
     }
     if (plat === 'mg') {
       return LP.http('https://music.migu.cn/v3/api/music/audioPlayer/getLyric?copyrightId=' + encodeURIComponent(mid),
@@ -636,6 +686,29 @@
           diagLyric('平台内置/mg', !!l, l ? l.length + ' 字' : '返回空');
           return l ? { lyric: String(l), tlyric: '' } : null;
         }).catch(function (e) { diagLyric('平台内置/mg', false, (e && e.message) || e); return null; });
+    }
+    if (plat === 'tx') {
+      /* 腾讯歌词：老接口 fcg_query_lyric_new.fcg 需要 y.qq.com 的 Referer，
+       * 默认回 JSONP（MusicJsonCallback(...)）；nobase64=1 时 lyric 是明文，但部分歌曲
+       * 仍回 base64，所以解码前先判断是不是 base64 字符集。 */
+      var txMid = (track._raw && (track._raw.songmid || track._raw.mid)) || mid;
+      return LP.http('https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg?songmid=' +
+        encodeURIComponent(txMid) + '&format=json&nobase64=1',
+        { headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10)', Referer: 'https://y.qq.com/portal/player.html' } })
+        .then(function (r) {
+          var raw = String((r && r.body) || '').trim();
+          if (!raw) throw new Error('返回空');
+          var m = raw.match(/^[^\[{]*\(([\s\S]*)\)[\s;]*$/);      // 剥 JSONP 包装
+          var body = m ? m[1] : raw;
+          var d = parseJsonLoose(body);
+          if (!d) throw new Error('非 JSON:' + raw.slice(0, 60));
+          var l = String(d.lyric || '');
+          var t = String(d.trans || '');
+          if (l) l = maybeB64Text(l);
+          if (t) t = maybeB64Text(t);
+          diagLyric('平台内置/tx', !!l, l ? l.length + ' 字' : '返回空 retcode=' + (d.retcode != null ? d.retcode : '-'));
+          return l ? { lyric: l, tlyric: t } : null;
+        }).catch(function (e) { diagLyric('平台内置/tx', false, (e && e.message) || e); return null; });
     }
     if (plat === 'kg') {
       diagLyric('平台内置/kg', false, '暂未实现 krc 解密');
