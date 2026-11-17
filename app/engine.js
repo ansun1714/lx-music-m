@@ -65,6 +65,7 @@
     this.onEnded = null;
     this.onStateChange = null;
     this._pauseMiss = 0;
+    this._loadGen = 0;
     this._timer = null;
   }
 
@@ -424,6 +425,7 @@
    * 代价是整段解码进内存（上限 24MB），换来音效在任何 WebView 上都能真实生效。 */
   AudioEngine.prototype._playViaBuffer = function (url, ref, startAt, autoplay) {
     var self = this;
+    var gen = this._loadGen || 0;
     url = String(url || '');
     if (!url) return false;
     this._ensureCtx();
@@ -454,10 +456,12 @@
       var got = false;
       function ok(buf) {
         if (got) return; got = true;
+        if (gen !== self._loadGen) return;      // 已切歌，旧解码结果丢弃
         self._applyBuffer(buf, ref, startAt, autoplay);
       }
       function fail(e) {
         if (got) return; got = true;
+        if (gen !== self._loadGen) return;
         self._lastError = '解码失败: ' + (e && e.message || e);
         dlog('audio', self._lastError);
         if (self.onError) self.onError('音频解码失败（该格式可能不受支持）');
@@ -477,6 +481,7 @@
       return true;
     }
     this._fetchBytes(url, ref && ref.headers, function (err, bytes) {
+      if (gen !== self._loadGen) return;
       if (err || !bytes) {
         self._lastError = '音效取字节失败: ' + (err && err.message);
         dlog('audio', self._lastError);
@@ -522,6 +527,20 @@
     this.playing = false;
     this._ending = false;
     nx.addEventListener('ended', function () { self._ended(); });
+    nx.addEventListener('pause', function () {
+      if (!self.playing || self.el !== nx) return;
+      self.playing = false;
+      self.offset = self.position();
+      self._pauseMiss = 0;
+      if (self._timer) { clearInterval(self._timer); self._timer = null; }
+      if (self.onStateChange) self.onStateChange(false);
+    });
+    nx.addEventListener('play', function () {
+      if (self.playing || self.el !== nx) return;
+      self.playing = true;
+      if (self.onStateChange) self.onStateChange(true);
+      self.play();
+    });
     nx.addEventListener('loadedmetadata', function () {
       if (nx.duration && isFinite(nx.duration)) self.duration = nx.duration;
     });
@@ -641,6 +660,22 @@
     }
     el.src = url;
     el.addEventListener('ended', function () { self._ended(); });
+    /* 元素被外部（灵动岛 / 系统媒体控件 / 锁屏）暂停或恢复时，事件即时同步内部状态，
+     * 不等 250ms 轮询；自己调 pause() 会先把 playing 置 false，这里不会误触发。 */
+    el.addEventListener('pause', function () {
+      if (!self.playing || self.el !== el) return;
+      self.playing = false;
+      self.offset = self.position();
+      self._pauseMiss = 0;
+      if (self._timer) { clearInterval(self._timer); self._timer = null; }
+      if (self.onStateChange) self.onStateChange(false);
+    });
+    el.addEventListener('play', function () {
+      if (self.playing || self.el !== el) return;
+      self.playing = true;
+      if (self.onStateChange) self.onStateChange(true);
+      self.play();
+    });
     el.addEventListener('loadedmetadata', function () {
       if (el.duration && isFinite(el.duration)) self.duration = el.duration;
     });
@@ -699,10 +734,12 @@
     this.track = track;
     this.duration = track.duration || 120;
     this.offset = 0;
+    this._loadGen = (this._loadGen || 0) + 1;
     this._graphFallback = false;
     this._blobPending = null;
     this._wantBlob = null;
     this._ending = false;
+    if (this.onTick) this.onTick(0, this.duration);
     return new Promise(function (resolve) {
       if (ref && (ref.kind === 'downloaded' || ref.kind === 'stream') && (ref.localUrl || ref.url)) {
         var u = ref.url || ref.localUrl;
