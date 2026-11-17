@@ -20,8 +20,8 @@ android-34
 build.py 3.13.7 (24) / manifest 3.13.7 (24)
 == 生成单文件版 ==
 生成 /home/runner/work/lx-music-m/lx-music-m/app/standalone.html
-  版本 7dac9ff
-  大小 477513 B
+  版本 4127719
+  大小 479301 B
   CSS 3 个，脚本 13 个，字体 base64 17484 字符
   剩余外部引用: 无
 == 逻辑冒烟 ==
@@ -423,6 +423,7 @@ build.py 3.13.7 (24) / manifest 3.13.7 (24)
   PASS  混响切到大厅
   PASS  3D 环绕可开启
   PASS  音效配置已持久化
+[LXDIAG][fx] setEnabled -> false mounted=false
   PASS  关闭音效保留已配参数
   PASS  关闭后描述为已关闭
   PASS  重置清空 EQ / 混响 / 环绕
@@ -577,8 +578,11 @@ build.py 3.13.7 (24) / manifest 3.13.7 (24)
   PASS  已下载曲目改播本地文件（不再回头向音源要地址）
   PASS  本地地址带上了落盘路径
   PASS  同源地址不再套一层媒体代理
+[LXDIAG][fx] setEnabled -> false mounted=false
   PASS  音效关闭时不接管音频图
+[LXDIAG][fx] setEnabled -> true mounted=false
   PASS  音效一开就接管音频图（参数全平也算，不再「开了没反应」）
+[LXDIAG][fx] setEnabled -> false mounted=false
 
 ========================================
   PASS 461 / 463
