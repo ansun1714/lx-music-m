@@ -506,6 +506,7 @@
    * 注意有些音源（如星海音乐源）只在取过一次播放地址后才有歌词缓存，
    * 因此第一次拿不到时会补一次 musicUrl 解析再问，并缓存结果。 */
   var lyricCache = {};
+  var lyricPending = {};      // 进行中的歌词请求，避免切歌/重复开关时并发重复打链
   var lyricDiag = [];          // 歌词链路诊断：哪个音源、成功与否、条数/原因（真机排查用）
 
   function diagLyric(src, ok, detail) {
@@ -536,9 +537,7 @@
       });
   }
 
-  function lyric(track) {
-    if (!track) return Promise.resolve(null);
-    if (lyricCache[track.id]) return Promise.resolve(lyricCache[track.id]);
+  function doLyric(track) {
     // 默认音源不一定实现 lyric：按「默认优先」的顺序找第一个声明了 lyric 的音源
     var chain = sourceChain(track).filter(function (a) { return supports(a, 'lyric'); });
     if (!chain.length) return platformLyric(track);
@@ -565,6 +564,22 @@
     return next();
   }
 
+  function lyric(track) {
+    if (!track) return Promise.resolve(null);
+    if (lyricCache[track.id]) return Promise.resolve(lyricCache[track.id]);
+    if (lyricPending[track.id]) return lyricPending[track.id];
+    var p = doLyric(track).then(function (r) {
+      delete lyricPending[track.id];
+      if (r && r.lyric) lyricCache[track.id] = r;
+      return r && r.lyric ? r : null;
+    }, function () {
+      delete lyricPending[track.id];
+      return null;
+    });
+    lyricPending[track.id] = p;
+    return p;
+  }
+
   function platformLyric(track) {
     var plat = track.platform || String(track.id || '').split('_')[0];
     var mid = track.songmid || String(track.id || '').replace(/^[a-z]+_/, '');
@@ -582,21 +597,28 @@
     }
     if (plat === 'kw') {
       var kwMid = (track._raw && track._raw.rid) || mid;
-      /* newlyric.lrc 已被限制；走移动端 songinfoandlrc，lrclist 是 [{time,lineLyric}] */
-      return LP.httpJson('https://m.kuwo.cn/newh5/singles/songinfoandlrc?musicId=' + encodeURIComponent(kwMid),
-        { headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10)', Referer: 'https://m.kuwo.cn/' } })
-        .then(function (d) {
-          var list = d && (d.lrclist || (d.data && d.data.lrclist));
-          if (!list || !list.length) { diagLyric('平台内置/kw', false, '返回空'); return null; }
-          var lrc = list.map(function (x) {
-            var t = Number(x.time) || 0;
-            var mm = String(Math.floor(t / 60)).padStart(2, '0');
-            var ss = (t % 60).toFixed(2).padStart(5, '0');
-            return '[' + mm + ':' + ss + ']' + (x.lineLyric || '');
-          }).join('\n');
-          diagLyric('平台内置/kw', true, lrc.length + ' 字');
-          return { lyric: lrc, tlyric: '' };
-        }).catch(function (e) { diagLyric('平台内置/kw', false, (e && e.message) || e); return null; });
+      /* newlyric.lrc 已被限制；走移动端 songinfoandlrc，lrclist 是 [{time,lineLyric}]。
+       * 该接口偶发反爬返回空 / 非 JSON，空结果时延迟一次重试。 */
+      function kwFetch() {
+        return LP.httpJson('https://m.kuwo.cn/newh5/singles/songinfoandlrc?musicId=' + encodeURIComponent(kwMid),
+          { headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10)', Referer: 'https://m.kuwo.cn/' } })
+          .then(function (d) {
+            var list = d && (d.lrclist || (d.data && d.data.lrclist));
+            if (!list || !list.length) throw new Error('返回空');
+            return list.map(function (x) {
+              var t = Number(x.time) || 0;
+              var mm = String(Math.floor(t / 60)).padStart(2, '0');
+              var ss = (t % 60).toFixed(2).padStart(5, '0');
+              return '[' + mm + ':' + ss + ']' + (x.lineLyric || '');
+            }).join('\n');
+          });
+      }
+      return kwFetch().catch(function () {
+        return new Promise(function (resolve) { setTimeout(resolve, 700); }).then(kwFetch);
+      }).then(function (lrc) {
+        diagLyric('平台内置/kw', true, lrc.length + ' 字');
+        return { lyric: lrc, tlyric: '' };
+      }).catch(function (e) { diagLyric('平台内置/kw', false, (e && e.message) || e); return null; });
     }
     if (plat === 'mg') {
       return LP.http('https://music.migu.cn/v3/api/music/audioPlayer/getLyric?copyrightId=' + encodeURIComponent(mid),
@@ -949,7 +971,7 @@
     fetchDownload: fetchDownload, fetchMedia: function (track, quality) { return resolveMedia(track, quality, 'download'); },
     playableUrl: playableUrl, lyric: lyric,
     lyricDiag: function () { return lyricDiag.slice(); },
-    clearLyric: function (id) { if (id) delete lyricCache[id]; else lyricCache = {}; },
+    clearLyric: function (id) { if (id) { delete lyricCache[id]; delete lyricPending[id]; } else { lyricCache = {}; lyricPending = {}; } },
     mediaToBlob: mediaToBlob, mimeOf: mimeOf, extOf: extOf,
     normalizeTrack: normalizeTrack, normalizeMedia: normalizeMedia,
     builtinScript: function () { return BUILTIN; },

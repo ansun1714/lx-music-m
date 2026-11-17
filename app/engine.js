@@ -159,6 +159,10 @@
   AudioEngine.prototype.attachEl = function () {
     if (this.mediaSrc || !this.el || !this.ctx) return false;
     if (!this.wantGraph(this._lastRef)) return false;
+    /* 已在原生出声的活动解码器补挂进 MediaElementSource，ArkWeb 不会把当前解码帧
+     * 喂给图节点（表现为自检 bound=true 但全程静音）。这类情况交给 rebuild 换新元素，
+     * 只对「还没起播 / 已暂停」的元素直接补挂。 */
+    if (!this.el.paused && this.el.readyState >= 2) return false;
     if (!this.ensureMounted()) return false;
     try {
       this.mediaSrc = this.ctx.createMediaElementSource(this.el);
