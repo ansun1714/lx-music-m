@@ -112,11 +112,17 @@
    * 连续两次卡顿就主动暂停原生播放，把带宽全让给取字节；字节回来后由 Blob 无缝接管，
    * 音效也才真正接得上。其它平台（QQ 等）不触发，行为不变。 */
   AudioEngine.prototype._onStall = function (el) {
-    if (!this._blobPending || this._stallHold) return;
     if (this.el !== el) return;
     var now = Date.now();
     if (!this._stallWin || now - this._stallWin.t0 > 15000) this._stallWin = { n: 0, t0: now };
     this._stallWin.n++;
+    /* 15 秒内卡 3 次以上 = 上游吞吐连实时都跟不上（真机日志里酷我代理约 0.2~0.3 倍速）。
+     * 这种源上再并发取整段字节只会让两条流互相饿死，标记慢流后不再抢带宽。 */
+    if (this._stallWin.n >= 3 && !this._slowStream) {
+      this._slowStream = true;
+      dlog('audio', 'slow-stream：上游吞吐不足实时（15s 内 ' + this._stallWin.n + ' 次卡顿），不再并发取整段');
+    }
+    if (!this._blobPending || this._stallHold) return;
     if (this._stallWin.n < 2) return;
     this._stallHold = true;
     dlog('audio', 'stall-hold：原生在线播放连续卡顿，暂停让路给取字节 pending=' +
@@ -633,6 +639,17 @@
     var self = this;
     var url = ref && (ref.url || ref.localUrl);
     if (!url) return false;
+    /* 慢流：整段取字节本身就要几十倍实时，再并发只会把正在播的那条也拖死。
+     * 这种源上优先保「能连续出声」，音效留给下一首或换源后再接。 */
+    if (this._slowStream) {
+      this._lastError = '上游吞吐不足，已保持原生播放（不并发取整段）';
+      dlog('audio', 'graph skip: slow-stream host=' +
+        String(url).replace(/^https?:\/\//, '').split('/')[0]);
+      this._blobPending = null;
+      this._wantBlob = null;
+      if (this.onGraphUnavailable) this.onGraphUnavailable(this._lastError);
+      return false;
+    }
     var cached = this._blobCache[url];
     if (cached) {
       return this._swapToGraphable(cached, { kind: 'stream', url: cached, origin: url, mime: ref.mime, blob: true }, pos, was);
@@ -800,6 +817,7 @@
     this._ending = false;
     this._stallHold = false;
     this._stallWin = null;
+    this._slowStream = false;
     try {
       var lu = String((ref && (ref.url || ref.localUrl)) || '');
       var lhost = lu.replace(/^https?:\/\//, '').split('/')[0];
@@ -841,6 +859,13 @@
       url: origin, localUrl: origin, mime: last.mime, headers: last.headers
     };
     var want = this.wantGraph(base);
+    /* 慢流上不重建元素：重建会摘 src、丢缓冲，等于把「勉强能播」的也打断。 */
+    if (want && this._slowStream) {
+      this._lastError = '上游吞吐不足，暂不接入音效（保持播放优先）';
+      dlog('audio', 'rebuild skipped: slow-stream');
+      if (this.onGraphUnavailable) this.onGraphUnavailable(this._lastError);
+      return true;
+    }
     if (!want) {
       this._blobPending = null;
       this._wantBlob = null;
@@ -958,6 +983,7 @@
     this._ending = false;
     this._stallHold = false;
     this._stallWin = null;
+    this._slowStream = false;
     if (this.el) {
       try { this.el.pause(); } catch (e) {}
       /* v3.13.2：必须把旧 <audio> 的 src 摘掉再 load()，让 WebView 立刻回收它的媒体解码器。

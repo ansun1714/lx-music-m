@@ -10,10 +10,21 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const cp = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 const APP = path.join(ROOT, 'app');
 const OUT = path.join(APP, 'standalone.html');
+
+/* 把构建版本写进页面：诊断日志里必须能看出「用户装的到底是哪一版」，
+ * 否则回传的日志无法和提交对应，排障会反复绕圈。取不到 git 就标 unknown。 */
+let BUILD = '(unknown)';
+try {
+  BUILD = cp.execSync('git rev-parse --short HEAD', { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] })
+    .toString().trim() || BUILD;
+} catch (e) {
+  BUILD = '(unknown)';
+}
 
 const CSS = ['theme-fallback.css', 'icons.css', 'styles.css'];
 const JS = ['i18n.js', 'themes.js', 'data.js', 'engine.js', 'sound-effects.js',
@@ -33,7 +44,7 @@ let css = CSS.map(f => '/* ===== ' + f + ' ===== */\n' + read(f)).join('\n\n');
 css = css.replace(/url\(["']?fonts\/icomoon\.ttf["']?\)/g,
   'url("data:font/ttf;base64,' + fontB64 + '")');
 
-const scripts = JS.map(f =>
+const scripts = '<script>window.LXBuild=' + JSON.stringify(BUILD) + ';</script>\n' + JS.map(f =>
   '<script>/* ===== ' + f + ' ===== */\n' +
   read(f).replace(/<\/script/gi, '<\\/script') +
   '\n</script>'
@@ -49,6 +60,7 @@ let out = html
 fs.writeFileSync(OUT, out, 'utf8');
 const stat = fs.statSync(OUT);
 console.log('生成 ' + OUT);
+console.log('  版本 ' + BUILD);
 console.log('  大小 ' + stat.size + ' B');
 console.log('  CSS ' + CSS.length + ' 个，脚本 ' + JS.length + ' 个，字体 base64 ' + fontB64.length + ' 字符');
 // 只关心静态标签引用；JS 里拼接的 src="' + x + '" 是运行时封面图（失败自动隐藏），不算

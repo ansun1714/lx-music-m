@@ -1335,7 +1335,12 @@
         // 否则用户只会看到笼统的「没有地址」，无法判断该去配置什么。
         var why = SR.lastError ? SR.lastError(tr) : '';
         toast('没有解析到播放地址' + (why ? '：' + why : '：请确认该平台绑定的音源已通过验证'));
-        S.playing = false; renderPlayer();
+        /* 解析失败的歌不能留着上一首的元素继续占着：
+         * 否则播放器显示的是新歌、声音还是上一首，进度条也停在上一次的位置（真机日志已证实）。 */
+        try { engine.stop(); } catch (e) {}
+        S.playing = false;
+        renderPlayer();
+        if (S.overlay === 'detail') renderOverlay();
         return null;
       }
       return engine.load(tr, ref);
@@ -2361,6 +2366,7 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
     var st = (engine.getAudioStatus ? engine.getAudioStatus() : {});
     var snd = Snd ? Snd.state() : {};
     out.push('==== LX Music 诊断日志 ====');
+    out.push('版本: ' + (window.LXBuild || '(未知，浏览器预览构建)'));
     out.push('导出时间: ' + new Date().toLocaleString('zh-CN'));
     out.push('UA: ' + navigator.userAgent);
     out.push('队列: ' + Math.min(S.index + 1, S.queue.length) + '/' + S.queue.length + ' · 模式=' + (S.mode || '-'));
@@ -2409,7 +2415,15 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
         ' enabled=' + !!a.enabled + ' builtin=' + !!a.builtin + ' platforms=' + plats;
     });
     out.push(diagSection('音源列表', srcLines));
-    out.push(diagSection('歌词诊断', SR.lyricDiag()));
+    /* lyricDiag() 返回的是 {src,ok,detail} 对象数组，直接 join 会打成「[object Object]」，
+     * 等于把最有用的歌词失败原因全丢了。这里格式化成一行一条。 */
+    var lyrLines = (SR.lyricDiag() || []).map(function (d) {
+      if (d && typeof d === 'object') {
+        return (d.ok ? 'ok   ' : 'FAIL ') + (d.src || '-') + ' · ' + (d.detail || '-');
+      }
+      return String(d);
+    });
+    out.push(diagSection('歌词诊断', lyrLines));
     out.push(diagSection('音源运行日志', SR.logs()));
     out.push(diagSection('错误日志', S.errorLog.slice()));
     out.push(diagSection('同步日志', S.sync.log.slice()));
