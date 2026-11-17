@@ -20,7 +20,8 @@ android-34
 build.py 3.13.7 (24) / manifest 3.13.7 (24)
 == 生成单文件版 ==
 生成 /home/runner/work/lx-music-m/lx-music-m/app/standalone.html
-  大小 470603 B
+  版本 556798d
+  大小 473030 B
   CSS 3 个，脚本 13 个，字体 base64 17484 字符
   剩余外部引用: 无
 == 逻辑冒烟 ==
@@ -225,7 +226,7 @@ build.py 3.13.7 (24) / manifest 3.13.7 (24)
   PASS  音源脚本受限作用域屏蔽 window/document/localStorage/fetch
   PASS  单文件版存在且 > 100 KB
   PASS  单文件版无外部 script/link 引用
-  PASS  单文件版内联 13 段脚本
+  FAIL  单文件版内联 13 段脚本
   PASS  单文件版内联字体 base64
   PASS  单文件版含 3 段 CSS 注释
 
@@ -580,7 +581,8 @@ build.py 3.13.7 (24) / manifest 3.13.7 (24)
   PASS  音效一开就接管音频图（参数全平也算，不再「开了没反应」）
 
 ========================================
-  PASS 462 / 463
+  PASS 461 / 463
   FAILED:
    - 非音源模块无网络 API（fetch/XHR/WebSocket/EventSource）
+   - 单文件版内联 13 段脚本
 ========================================
