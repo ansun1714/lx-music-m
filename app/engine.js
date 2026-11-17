@@ -107,6 +107,36 @@
       });
   };
 
+  /* 有些音源（酷我这类 CDN）会按连接限速。此时「原生在线播放」和「桥取字节」两条流
+   * 同时在抢同一条带宽，元素就会反复 waiting/stalled —— 听感正是「放一秒停一会儿」。
+   * 连续两次卡顿就主动暂停原生播放，把带宽全让给取字节；字节回来后由 Blob 无缝接管，
+   * 音效也才真正接得上。其它平台（QQ 等）不触发，行为不变。 */
+  AudioEngine.prototype._onStall = function (el) {
+    if (!this._blobPending || this._stallHold) return;
+    if (this.el !== el) return;
+    var now = Date.now();
+    if (!this._stallWin || now - this._stallWin.t0 > 15000) this._stallWin = { n: 0, t0: now };
+    this._stallWin.n++;
+    if (this._stallWin.n < 2) return;
+    this._stallHold = true;
+    dlog('audio', 'stall-hold：原生在线播放连续卡顿，暂停让路给取字节 pending=' +
+      String(this._blobPending).slice(0, 70));
+    try { el.pause(); } catch (e) {}
+  };
+
+  /* 解除「让路」状态：取字节失败或需要退回原生时，必须把元素重新放起来，
+   * 否则用户看到的是「点了歌一首都没声」（元素被我们自己 paused 了）。 */
+  AudioEngine.prototype._releaseStallHold = function (resume) {
+    var held = this._stallHold;
+    this._stallHold = false;
+    this._stallWin = null;
+    if (!held || !resume) return;
+    if (this.playing && this.el && this.el.paused) {
+      var q = this.el.play();
+      if (q && q.catch) q.catch(function () {});
+    }
+  };
+
   AudioEngine.prototype._ensureCtx = function () {
     /* P0-1：不能只看「ctx 是否存在」。closed 的上下文再 createMediaElementSource/connect
      * 都是无效操作（不报错、只是没声音/没效果），必须先丢弃再重建。 */
@@ -414,7 +444,10 @@
       if (err) {
         self._lastError = 'Blob 接管失败: ' + (err.message || err);
         dlog('audio', self._lastError);
+        self._stallHold = false;            // 接管失败要放原生继续播，恢复它在 timer 里自愈
+        self._stallWin = null;
         try { nx.pause(); nx.removeAttribute('src'); nx.load(); } catch (e) {}
+        self._releaseStallHold(true);     // 让被我们暂停的原生元素重新出声
         if (self._playViaBuffer(ref.origin || key, ref, self.position(), self.playing)) return;
         if (self.onGraphUnavailable) self.onGraphUnavailable(self._lastError);
         return;
@@ -429,6 +462,8 @@
       if (self.mediaSrc) { try { self.mediaSrc.disconnect(); } catch (e) {} self.mediaSrc = null; }
       nx.volume = 1;
       self._blobPending = null;        // 成功接管后必须清标记，否则后续 rebuild 会被「已在取字节」挡住
+      self._stallHold = false;         // 已经换成 Blob，恢复正常状态机
+      self._stallWin = null;
       self._cloneFrom(nx, url, ref, now > 0 ? now : pos, was);
     }
     function onCanPlay() { finish(null); }
@@ -628,6 +663,7 @@
         if (err || !bytes) {
           self._lastError = '音效取字节失败: ' + (err && err.message);
           dlog('audio', self._lastError);
+          self._releaseStallHold(true);
           if (self._playViaBuffer(fetchUrl, ref, self.position(), self.playing)) return;
           if (self.onGraphUnavailable) self.onGraphUnavailable(err && err.message);
           return;
@@ -680,6 +716,8 @@
     }
     el.src = url;
     this._attachDiag(el, 'el');
+    el.addEventListener('waiting', function () { self._onStall(el); });
+    el.addEventListener('stalled', function () { self._onStall(el); });
     el.addEventListener('ended', function () { self._ended(); });
     /* 元素被外部（灵动岛 / 系统媒体控件 / 锁屏）暂停或恢复时，事件即时同步内部状态，
      * 不等 250ms 轮询；自己调 pause() 会先把 playing 置 false，这里不会误触发。 */
@@ -760,6 +798,8 @@
     this._blobPending = null;
     this._wantBlob = null;
     this._ending = false;
+    this._stallHold = false;
+    this._stallWin = null;
     try {
       var lu = String((ref && (ref.url || ref.localUrl)) || '');
       var lhost = lu.replace(/^https?:\/\//, '').split('/')[0];
@@ -878,7 +918,9 @@
         if (!self.playing) return;
         /* 元素被外部（灵动岛 / 系统媒体控件 / 锁屏）暂停时，不能反复重放把暂停抢回来；
          * 连续两拍仍暂停，就认定是外部暂停，同步内部状态并通知 UI。 */
-        if (self.el && self.el.paused && self.el.readyState >= 2) {
+        if (self._stallHold) {
+          /* 正在等 Blob 接管：元素是「故意」暂停的，既不能当外部暂停处理，也不能重放抢带宽 */
+        } else if (self.el && self.el.paused && self.el.readyState >= 2) {
           self._pauseMiss = (self._pauseMiss || 0) + 1;
           if (self._pauseMiss < 2) {
             var q = self.el.play();
@@ -914,6 +956,8 @@
     this._blobPending = null;
     this._wantBlob = null;
     this._ending = false;
+    this._stallHold = false;
+    this._stallWin = null;
     if (this.el) {
       try { this.el.pause(); } catch (e) {}
       /* v3.13.2：必须把旧 <audio> 的 src 摘掉再 load()，让 WebView 立刻回收它的媒体解码器。

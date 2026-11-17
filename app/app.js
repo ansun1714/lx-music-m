@@ -724,6 +724,7 @@
       { k: '__sync', n: '连接码与同步服务地址', type: 'sync' }
     ] },
     { name: '其他', items: [
+      { k: '__diag', n: '诊断日志', type: 'diag' },
       { k: '__cache', n: '缓存与错误日志', type: 'cache' },
       { k: '__about', n: '关于 LX Music', type: 'about' }
     ] }
@@ -798,6 +799,12 @@
       if (window.EchoBridge) { return ''; }
       extra = '<label class="switch"><input type="checkbox" data-act="dl-auto"' +
         (DL.opts.autoDeliver ? ' checked' : '') + '><i></i></label>';
+    } else if (it.type === 'diag') {
+      /* 诊断日志：真机排障要「不用连电脑就能把日志拿出来」。
+       * 导出走系统保存框落成 txt；查看是同一份内容在应用内直接显示，导出被取消时也看得到。 */
+      extra = '<div class="sr-actions"><button class="btn sm primary" data-act="log-export">导出</button>' +
+        '<button class="btn sm" data-act="log-view">查看</button></div>';
+      desc = '汇总引擎 / 音频元素事件 / 音源 / 歌词 / 错误日志，导出为 txt 文件回传分析';
     } else {
       extra = '<button class="btn sm" data-act="open-panel" data-id="' + it.type + '">' +
         esc(t('open', '打开')) + '</button>';
@@ -1066,8 +1073,8 @@
     h += '<div class="fx-row"><div class="fx-label"><b>3D 环绕</b><span>声音绕听者缓慢旋转</span></div>' +
       '<label class="switch"><input type="checkbox" data-act="fx-surround"' + (st.surround ? ' checked' : '') + '><i></i></label></div>';
     h += '<div class="fx-row"><div class="fx-label"><b>音频图自检</b><span id="fxDiag">点右侧按钮查看 audio 链路真实状态</span></div>' +
-      '<button class="btn sm" data-act="fx-diag">检测</button>' +
-      '<button class="btn sm" data-act="log-export">导出日志</button></div>';
+      '<div class="fx-actions"><button class="btn sm" data-act="fx-diag">检测</button>' +
+      '<button class="btn sm" data-act="log-export">导出日志</button></div></div>';
     h += '<div class="fx-sec"><div class="fx-title">均衡器 <em>±12 dB</em></div>' +
       Snd.FREQS.map(function (f, i) {
         var v = st.eq[i];
@@ -1129,6 +1136,13 @@
           icon(showLyr ? 'lyric-on' : 'lyric-off') + '<span>歌词</span></button>' +
           '</div></div>';
       }
+    } else if (k === 'diaglog') {
+      title = '诊断日志';
+      body = '<div class="ov-body diag-wrap">' +
+        '<div class="diag-bar"><button class="btn sm primary" data-act="log-export">导出文件</button>' +
+        '<button class="btn sm" data-act="log-copy">复制全文</button>' +
+        '<button class="btn sm" data-act="diaglog-refresh">刷新</button></div>' +
+        '<pre class="diag-pre" id="diagPre">' + esc(S.diagText || buildDiagnosticLog()) + '</pre></div>';
     } else if (k === 'effects') {
       title = '音效设置';
       body = effectsHtml();
@@ -2303,6 +2317,15 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
         S.sync.connected = true; renderOverlay(); return;
       case 'log-clear': S.errorLog = []; save(); renderOverlay(); return;
       case 'log-export': exportDiagnostic(); return;
+      case 'log-view':
+        S.diagText = buildDiagnosticLog();
+        openOverlay('diaglog');
+        return;
+      case 'diaglog-refresh':
+        S.diagText = buildDiagnosticLog();
+        renderOverlay();
+        return;
+      case 'log-copy': copyDiagText(); return;
       case 'import-list': pickFile(function (text) {
         try {
           var d = JSON.parse(text), ids = (d.tracks || d.list || []).map(function (x) {
@@ -2424,6 +2447,46 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
       } catch (e) {}
       toast('浏览器环境已触发下载');
     }
+  }
+  /* 复制全文：ArkWeb 里 navigator.clipboard 常因非安全上下文不可用，
+   * 用 textarea + execCommand 兜底，选中的范围也留在页面上供手动长按复制。 */
+  function copyDiagText() {
+    var text = S.diagText || buildDiagnosticLog();
+    var done = function () { toast('已复制全文，可直接粘贴发送'); };
+    var fail = function () {
+      try {
+        var sel = window.getSelection ? window.getSelection() : null;
+        var pre = $('diagPre');
+        if (pre && sel) {
+          var r = document.createRange();
+          r.selectNodeContents(pre);
+          sel.removeAllRanges(); sel.addRange(r);
+        }
+      } catch (e) {}
+      toast('已选中全文，长按可复制');
+    };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () { legacyCopy(text) ? done() : fail(); });
+        return;
+      }
+    } catch (e) {}
+    legacyCopy(text) ? done() : fail();
+  }
+  function legacyCopy(text) {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, ta.value.length);
+      var ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return ok;
+    } catch (e) { return false; }
   }
   function applySettings(noRender) {
     var b = document.body;

@@ -432,6 +432,8 @@ button { background: none; border: 0; padding: 0; cursor: pointer; }
   padding: 12px 0; border-bottom: 1px solid var(--c-border-background); }
 .fx-label b { display: block; font-size: calc(14px * var(--ui-fs)); font-weight: 500; }
 .fx-label span { display: block; font-size: calc(11px * var(--ui-fs)); color: var(--c-font-label); margin-top: 2px; }
+.fx-row .fx-label { min-width: 0; flex: 1 1 auto; }
+.fx-actions { display: flex; gap: 8px; flex: 0 0 auto; }
 .fx-sec { padding: 12px 0; border-bottom: 1px solid var(--c-border-background); }
 .fx-title { font-size: calc(12px * var(--ui-fs)); color: var(--c-font-label); margin-bottom: 8px; }
 .fx-title em { font-style: normal; opacity: .7; }
@@ -442,6 +444,18 @@ button { background: none; border: 0; padding: 0; cursor: pointer; }
 .fx-val { width: 28px; text-align: right; font-size: calc(11px * var(--ui-fs)); color: var(--c-font-label); flex: none; }
 .fx-foot { display: flex; align-items: center; gap: 10px; padding-top: 14px; }
 .fx-foot span { font-size: calc(11px * var(--ui-fs)); color: var(--c-font-label); }
+
+/* 多按钮行（设置项右侧可并排放两个按钮） */
+.sr-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+
+/* 诊断日志全文页：等宽、可滚动、可长按选中 */
+.diag-wrap { padding: 0 14px 24px; }
+.diag-bar { display: flex; gap: 8px; padding: 10px 0; position: sticky; top: 0;
+  background: var(--c-bg-content, #fff); z-index: 2; }
+.diag-pre { margin: 0; padding: 12px; border-radius: 10px; background: rgba(127, 127, 127, .08);
+  font-family: ui-monospace, Menlo, Consolas, monospace; font-size: calc(11px * var(--ui-fs));
+  line-height: 1.55; white-space: pre-wrap; word-break: break-all; user-select: text;
+  -webkit-user-select: text; }
 
 /* 音源卡片：默认标签与主按钮（v3.8.0） */
 .ua-head .ua-tag { font-size: calc(10px * var(--ui-fs)); line-height: 1; padding: 3px 6px; border-radius: 8px;
