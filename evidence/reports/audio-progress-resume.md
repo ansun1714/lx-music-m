@@ -1,8 +1,8 @@
 # 音效 / 歌词 主线进度存档（明日续点）
 
-- 存档时间：2026-11-17（晚，诊断日志导出轮）
-- 仓库：`E:\AI\重构软件`，远端 `ansun1714/lx-music-m`，HEAD = `154e24f`（已推送，Release `hap-latest` 已出包）
-- 本轮产物 HAP：`C:\temp\LXMusic-hap-new.hap`，637,542 B，未签名，SHA-256 `84537b0eb582312c8e371308f392662204f61b14337b79639cb9cc308d595ce6`（对应 `154e24f`）
+- 存档时间：2026-11-17（晚，诊断日志可见性 + 酷我断续轮）
+- 仓库：`E:\AI\重构软件`，远端 `ansun1714/lx-music-m`，HEAD = `8e73530`（已推送，Release `hap-latest` 已出包）
+- 本轮产物 HAP：`C:\temp\LXMusic-hap-new.hap`，646,147 B，未签名，SHA-256 `dfef185e21b25e2cb279016d0eb91ccd78a3cd973f3c74ef3eee91f9c7c92ffa`（对应 `8e73530`）
 - 取包注意：Release 现在挂两个资产，`SHA256SUMS.txt`（93 B，排在 assets[0]）和 `entry-default-unsigned.hap`；必须按 `name -like '*.hap'` 过滤，不要取校验和文件。
 
 ## 0. 2026-11-17 真机复测结论（最新）
@@ -43,6 +43,24 @@
   - 设置 → 其他缓存管理：新增「诊断日志 · 导出」行，`data-act="log-export"`；`exportDiagnostic()` 先 `saveText('lx-diag-<时间戳>.txt', text)` 落沙箱 `downloads/`，再 `exportDownload(name,'text/plain')` 拷到用户可访问目录；无桥环境降级 Blob 下载。
 - 本地注意：`node evidence/build-standalone.js` / `inject-bridge-patch.js` 在本机对 `app/` 目录写文件报 EPERM（受控文件夹访问拦 node.exe）；CI 在 Linux 重新内联打包，不影响出包。`node --check app.js` 通过，离线基线仍 **PASS=11 FAIL=0**。
 - 待真机验证：导出文件能打开、中文不乱码、各分段有内容；复现切歌失败 / 歌词空后再导出回传，据此定位根因。
+
+## 0d. 2026-11-17 晚（二）：日志入口不可见 + 酷我断续（已出包 `8e73530`，待真机验证）
+
+**用户反馈**：① 最新版「日志下载的地方没找到」；② 酷我平台切歌后「放一秒停一会儿，放一秒停一会儿」，QQ 平台正常。
+
+- **① 入口问题（已修）**：导出功能本身已接线（`case 'log-export'`），但入口埋在「设置 → 其他 → 缓存与错误日志 → 诊断日志 → 导出」三层里，音效页那颗「导出日志」按钮也在页面中段，用户翻不到。
+  - `app/app.js`：`SETTING_GROUPS` 的「其他」组新增首行 `{ k:'__diag', n:'诊断日志', type:'diag' }`，`settingRow` 出「导出 / 查看」两颗按钮（`sr-actions` 容器）。
+  - 新增 `diaglog` 浮层：等宽 `<pre>` 全文 + 「导出文件 / 复制全文 / 刷新」；`S.diagText` 缓存当前文本。
+  - `copyDiagText()`：优先 `navigator.clipboard`，失败落 `textarea + execCommand`，再失败则把全文选中（长按可复制），三种结果都有 toast。
+  - 音效页自检行按钮改为 `.fx-actions` 容器，`.fx-label` 允许收缩（`min-width:0; flex:1 1 auto`），避免两个按钮把标签挤没。
+  - `app/styles.css`：新增 `.sr-actions` / `.diag-wrap` / `.diag-bar` / `.diag-pre` / `.fx-actions`。
+- **② 酷我断续（结构性修复，根因假设待日志确认）**：开着音效的在线曲目，当前是「原生元素直接流播远端地址」+「桥并行取整段字节准备 Blob」两条流同时跑。酷我这类按连接限速的 CDN 上，两路互抢带宽 → 元素反复 `waiting/stalled` → 听感即「放一秒停一会儿」；QQ 的 host 不卡限速，所以正常。
+  - `app/engine.js`：新增 `_onStall(el)`，`waiting`/`stalled` 15s 窗口内累计 ≥2 次且存在 `_blobPending` 时置 `_stallHold` 并主动 `el.pause()`，把带宽全让给取字节；Blob 到达后由 `_swapToGraphable` 无缝接管（位置取暂停时刻 `currentTime`，不跳段）。
+  - 250ms 定时器加 `_stallHold` 分支：让路期间既不当外部暂停、也不 `play()` 重放。
+  - 新增 `_releaseStallHold(resume)`：取字节失败 / Blob 接管超时（12s）时解除让路并把元素放回去出声，避免「一首都没声」；`load()`/`stop()`/`_cloneFrom` 成功后都复位 `_stallHold`/`_stallWin`。
+- 校验：`node --check app/app.js`、`node --check app/engine.js` 通过；`node evidence/audio-graph-tests.js` 仍 **PASS=11 FAIL=0**。
+- 设备现状：便携 hdc 反复 `kill` 后 `list targets` 仍 `[Empty]`，PnP 无 HDC 设备 → 本轮未装机、未抓日志。
+- 待真机验证：① 设置 →「其他」组第一行应直接看到「诊断日志 · 导出/查看」；② 酷我连切 3~5 首，是否还断续；仍断续则导出日志看 `[audio]` 里 `waiting/stalled` 与 `stall-hold` 记录，区分「限速」还是「解码器被回收」。
 
 ## 一、当前测试状态（严格按任务书口径）
 
@@ -128,9 +146,9 @@ node evidence/audio-graph-tests.js     # 基线 PASS=11 FAIL=0
 
 ## 七、提交链
 
-`153229a`（Blob 失败降级 buffer）→ `227dff3`（128k 地址 + 咪咕/酷我兜底）→ `2a139bb`（逐块 Base64、兜底顺序、酷我新接口、kg 标注）→ `c8b3d57`（lite.then 的 this、attachEl、pending、咪咕文本兜底、视口坐标滚动）→ `0d0b2ea`（活动元素拒绝补挂改走 Blob 重建；酷我重试一次；歌词进行中缓存）→ `345f1c4`（docs 存档 [skip ci]）→ `eaa13a6`（播放状态回写镜像；识别外部暂停后不再重放抢回，清定时器）→ `07cc58e`（切歌代际守卫丢旧回调、进度归零；元素 pause/play 事件即时同步）→ `154e24f`（应用内诊断日志环形缓冲 + 汇总导出；全局异常/未处理拒绝入缓冲）
+`153229a`（Blob 失败降级 buffer）→ `227dff3`（128k 地址 + 咪咕/酷我兜底）→ `2a139bb`（逐块 Base64、兜底顺序、酷我新接口、kg 标注）→ `c8b3d57`（lite.then 的 this、attachEl、pending、咪咕文本兜底、视口坐标滚动）→ `0d0b2ea`（活动元素拒绝补挂改走 Blob 重建；酷我重试一次；歌词进行中缓存）→ `345f1c4`（docs 存档 [skip ci]）→ `eaa13a6`（播放状态回写镜像；识别外部暂停后不再重放抢回，清定时器）→ `07cc58e`（切歌代际守卫丢旧回调、进度归零；元素 pause/play 事件即时同步）→ `154e24f`（应用内诊断日志环形缓冲 + 汇总导出；全局异常/未处理拒绝入缓冲）→ `2bf3b6e`（音效面板加导出日志入口；音频元素事件/缓冲/地址进诊断缓冲）→ `8e73530`（诊断日志入口提到设置「其他」首行 + 全文查看/复制；酷我断续：原生流与取字节抢带宽，连续卡顿主动让路给 Blob 接管）
 
-体积：`153229a`=622,924 / `227dff3`=624,554 / `2a139bb`=626,353 / `c8b3d57`=628,244 / `0d0b2ea`=629,468 / `eaa13a6`=630,473 / `07cc58e`=632,133 / `154e24f`=637,542
+体积：`153229a`=622,924 / `227dff3`=624,554 / `2a139bb`=626,353 / `c8b3d57`=628,244 / `0d0b2ea`=629,468 / `eaa13a6`=630,473 / `07cc58e`=632,133 / `154e24f`=637,542 / `2bf3b6e`=640,088 / `8e73530`=646,147
 
 ## 八、下一轮真机待验证清单
 
@@ -142,3 +160,5 @@ node evidence/audio-graph-tests.js     # 基线 PASS=11 FAIL=0
 6. **酷我歌词**：多切几首酷我，看是否一次出词；仍空则看诊断 detail。
 7. **咪咕**：确认文本兜底是否生效；仍空需抓原始响应体前 200 字判断反爬/gzip。
 8. **网易高亮位置**：视口坐标方案后是否居中；偏则排查 `[offset]` 方向、indexAt 容差。
+9. **诊断日志入口（`8e73530`）**：设置 → 其他组第一行「诊断日志」，点「导出」应弹系统保存框落 txt；点「查看」应看到分段全文；「复制全文」可粘贴。
+10. **酷我断续（`8e73530`）**：连切 3~5 首听是否还「放一秒停一会儿」。若仍断续，导出日志看 `[audio]` 段：出现 `stall-hold` = 断流让路生效但字节取得慢；只有大量 `waiting/stalled` 没有 `stall-hold` = 判定没触发（`_blobPending` 为空，说明没走 Blob 路径）；无 `waiting` 却停 = 解码器被回收/元素被停，需查 `pause`/`ended` 事件。
