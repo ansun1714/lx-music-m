@@ -1,9 +1,44 @@
 # 音效 / 歌词 主线进度存档（明日续点）
 
-- 存档时间：2026-11-17（晚，诊断日志可见性 + 酷我断续轮）
-- 仓库：`E:\AI\重构软件`，远端 `ansun1714/lx-music-m`，HEAD = `8e73530`（已推送，Release `hap-latest` 已出包）
-- 本轮产物 HAP：`C:\temp\LXMusic-hap-new.hap`，646,147 B，未签名，SHA-256 `dfef185e21b25e2cb279016d0eb91ccd78a3cd973f3c74ef3eee91f9c7c92ffa`（对应 `8e73530`）
+- 存档时间：2026-11-17 深夜收工（真机体验排障第五轮：冷启动弹窗 / 详情页标题 / 酷狗音效开关）
+- 仓库：`E:\AI\重构软件`，远端 `ansun1714/lx-music-m`，**HEAD = `98b87b8`（已推送，Release `hap-latest` 已出包，body「源码提交 98b87b8」）**
+- 本轮产物 HAP：`C:\temp\LXMusic-98b87b8-unsigned.hap`（＝`C:\temp\LXMusic-hap-new.hap`），**653,548 B**，未签名，SHA-256 `299229f113bc67e0d376bad105ec938fc36d6e05dd4b988d20ca3e0dfbd05dd6`；已用 `present_files` 本机绝对路径推到对话框交付。
 - 取包注意：Release 现在挂两个资产，`SHA256SUMS.txt`（93 B，排在 assets[0]）和 `entry-default-unsigned.hap`；必须按 `name -like '*.hap'` 过滤，不要取校验和文件。
+- 交付口径（用户硬性要求）：**不许 `FileBatchUpload`/CDN 转存**（会变 `.image` 后缀被用户否决），一律 `present_files` 传本机绝对路径；不出签名包，用户自己在手机侧签。
+- 仓位规矩：只保留 `LXMusic-hap-new.hap` 与当版带 sha 的副本，旧版包直接删（`7dac9ff`、`4127719` 已删）。
+
+## 明日首件事（三条待真机验证，按这个顺序验最省轮次）
+
+装在手机上的是 `98b87b8`，本轮改了三处、全部未真机验证：
+
+1. **冷启动弹系统文件管理器**（连续四轮未解）
+   - 已排掉的：`fileShare.activatePermission` 会拉起文件管理器 + `FILE_ACCESS_PERSIST` 权限声明（`4127719` 全删）；冷启动 12 秒内原生桥无任何 picker 调用（`18:45:36 init` 是轨迹里唯一一行）。
+   - `98b87b8` 新招：`Index.ets` 注册 **`.onShowFileSelector()`** 并返回「已处理、不选任何文件」。ArkWeb 在页面发起文件选择请求（`<input type=file>` / `showOpenFilePicker`）且未注册该回调时，会由系统直接拉起文件管理器。
+   - **判读**：新日志「原生桥轨迹（导出前快照）」里若出现 `ArkWeb 请求文件选择器：已拦截` → 就是页面请求引起的（已拦掉；若仍弹则下一步关 `Web.fileAccess(true)` 做对照，注意 `localMediaUrl` 用 `file://` 播沙箱音频，可能要保留）；若仍然只有 `init` → 是系统/ArkWeb 应用外层行为，换方向。
+2. **详情页「下一首」标题/封面不更新**
+   - 根因已定位：`renderOverlay()` 的 detail 分支取曲目是 `D.byId(S.overlayId) || currentTrack()`，`S.overlayId` 只在 `openOverlay()` 写一次，切歌后不更新。
+   - `98b87b8` 修复：`playFrom` 在 `S.overlay === 'detail'` 时先 `S.overlayId = tr.id` 再 `renderOverlay()` + `loadDetailLyric(tr)`，标题/副标题/封面/总时长/收藏态一并换。
+   - 验法：详情页打开状态连按几下「下一首」，看标题是否跟着走、歌词是否同步重载。
+3. **酷狗平台上音效「关不掉」**
+   - 证据（`lx-diag-...-10-22-27.txt`）：`18:21:17~18:21:35` 出现 `prepareGraph fail(音效未开启)` 与 `ok` 交替 11 次（间隔 1~2 秒），导出时 `enabled=true` → 一次点击让状态翻转两下。
+   - `4127719`/`98b87b8` 现状：`fx-toggle` 按 `Snd.state().enabled` 反推目标值 + 400ms 去重丢弃重复事件；关闭时不再 `engine.prepareGraph()`；`setEnabled` 补 `LXdlog('fx','setEnabled -> ...')`。
+   - 验法：音效页点关闭→开→关三四次，日志里 `fx-toggle 点击 -> enabled=` 与 `setEnabled ->` 两行应一一成对；若仍交替，说明别处又把开关打开（查 `setPreset/setBand/setReverb/setSurround` 的隐式 `enabled=true`）。
+
+## 已闭环（本轮确认，不必再动）
+
+- **音效效果**：用户确认「音效目前效果可以了」。
+- **灵动岛暂停**：用户确认「灵动岛暂停的问题目前解决掉了」。
+- **切歌进度归零**：用户确认「切歌归0的问题解决掉了」。
+- **QQ 歌词**：`98b87b8` 前已通，日志实证 `18:17:37 平台内置/tx => ok 1061 字`、`18:18:33 ok 1696 字`（`c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg?songmid=&format=json&nobase64=1` + `Referer: y.qq.com`，配 `parseJsonLoose` / `maybeB64Text`）。
+- **酷我断续**：换快源（星海 `yy1.zddyr.top`）后秒级就绪，实证慢源是上游代理（墨澜 `175.27.166.236:8928` ≈0.2~0.3 倍实时）。
+- **酷我歌词偶发刷不出**：已加双重重试（700/1500ms）+ 竞态自愈，用户认可「概率比之前大很多」。
+
+## 仍无解 / 已判定外部依赖
+
+- **酷狗（kg）歌词**：三条 kg 后端全 `无数据`/`不支持音质`/`Failed to connect`，且 krc 需 zlib 解压能力，客户端无解。
+- **QQ 偶发「音频加载失败」**：多切几次能播，音源侧间歇（`后端失败: QQ 音源暂无可用`），非客户端竞态。
+- **停手约 10 秒左侧菜单自动弹出**：未定位。
+- 2B（`ensureRunning()` 单飞、`ctx.onstatechange`、generation token、IR 优化）与 2C（环绕后台暂停、重写 `device-effects-check.js`、`run-all-tests.js`、统一 `isFlat()`）未开始。
 
 ## 0. 2026-11-17 真机复测结论（最新）
 
