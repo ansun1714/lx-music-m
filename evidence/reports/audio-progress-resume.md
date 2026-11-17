@@ -149,6 +149,25 @@
 
 **离线校验**：`node --check app/app.js`、`app/sound-effects.js` 通过；`node evidence/audio-graph-tests.js` **PASS=11 FAIL=0**。真机仍未验证。
 
+## 0h. 2026-11-17 18:45 真机日志（`lx-diag-2026-11-17-10-45-48.txt`，1413 B，`4127719`）
+
+**这份日志只覆盖冷启动后 12 秒（18:45:36 init → 18:45:48 导出），但足够定两件事。**
+
+1. **原生桥轨迹只有一行 `18:45:36 init`**，没有 `picker.save open` / `exportDownload` / `pickExportDir` / `applySaveDir`。即冷启动后 12 秒内原生侧**没有发起任何 picker 或授权调用**。
+   - 注意：这一段是 `buildDiagnosticLog()` 的快照，导出动作本身（`exportDownload`）发生在快照之后，所以不会出现在段内 —— 这是本轮把段落标题改成「原生桥轨迹（导出前快照）」的原因，避免误读成「导出没走桥」。
+   - 结论：`4127719` 之后仍未解决的冷启动弹窗**不是 EchoBridge 拉的**。`fileShare` 调用与 `FILE_ACCESS_PERSIST` 声明已在本版删除。
+2. **详情页切歌后标题/封面不更新**：`renderOverlay()` 的 detail 分支取曲目顺序是 `D.byId(S.overlayId) || currentTrack()`，而 `S.overlayId` 只在 `openOverlay()` 时写入、切歌后不更新 → 声音换歌、详情页仍渲染旧曲目。
+
+**本轮修复（3 处）：**
+
+1. `app/app.js` `playFrom`：详情页打开状态下切歌时 `S.overlayId = tr.id` 再 `renderOverlay()`，标题/封面/时长/收藏态一起跟着换歌。
+2. `harmony/.../pages/Index.ets`：新增 **`.onShowFileSelector()` 显式接管**。ArkWeb 在页面发起文件选择（`<input type=file>` / `showOpenFilePicker`）且未注册该回调时，会由系统直接拉起文件管理器；这里直接返回「已处理且不选任何文件」，既避免系统弹窗，也把事件记进桥轨迹（`ArkWeb 请求文件选择器：已拦截`）。音源导入走 `EchoBridge.pickScript`，不受影响。
+3. `EchoBridge.ets`：新增 `noteFileSelector()` 写入轨迹；`app.js` 诊断段标题改为「原生桥轨迹（导出前快照）」。
+
+**下一轮判读口径**：冷启动后再导出日志，若「原生桥轨迹」里出现 `ArkWeb 请求文件选择器：已拦截`，说明弹窗来源是页面发起的文件选择请求（已被拦截，若仍弹则需关 `fileAccess`）；若仍然只有 `init`，则是系统/ArkWeb 在应用外层的自发行为，需要换方向（例如关闭 `Web.fileAccess(true)` 做对照）。
+
+**离线校验**：`node --check app/app.js` 通过；`node evidence/audio-graph-tests.js` **PASS=11 FAIL=0**。
+
 ## 一、当前测试状态（严格按任务书口径）
 
 | 项 | 状态 |

@@ -59,6 +59,17 @@ struct Index {
           // 在部分机型上表现为「一打开应用就弹出系统文件管理器」，而本机又缺少
           // FolderSelection 能力，目录授权本就不可用，故启动阶段完全不做任何 picker/授权动作。
         })
+        /* ArkWeb 默认行为：页面一旦发起文件选择（input type=file / showOpenFilePicker），
+         * 未注册本回调时会由系统直接拉起文件管理器。真机上「冷启动弹文件管理器」在原生桥
+         * 轨迹为空的情况下仍然出现，故这里显式接管并**直接返回已处理**（不设置结果 = 选中 0 个文件），
+         * 既避免系统弹窗，也把事件记进桥轨迹。音源导入走的是 EchoBridge.pickScript，不受影响。 */
+        .onShowFileSelector((event) => {
+          this.bridge.noteFileSelector();
+          hilog.warn(0x0D00, TAG, 'page file selector intercepted (return handled, no system picker)');
+          // 返回 true 表示应用已处理：不设置 fileSelectorResult 即等同于「选中 0 个文件」，
+          // 系统不会再拉起文件管理器。
+          return true;
+        })
         .onErrorReceive(() => {
           hilog.error(0x0D00, TAG, 'web resource error');
         })

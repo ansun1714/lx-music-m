@@ -113,6 +113,11 @@ export class EchoBridge {
     return this.trace.length === 0 ? '(无)' : this.trace.join('\n');
   }
 
+  /** 页面主动请求文件选择器（Web onShowFileSelector）时记一笔，便于定位冷启动弹窗来源 */
+  noteFileSelector(): void {
+    this.tr('ArkWeb 请求文件选择器：已拦截');
+  }
+
   init(ctx: common.UIAbilityContext, web: webview.WebviewController): void {
     this.ctx = ctx;
     this.web = web;

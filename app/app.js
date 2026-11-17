@@ -1355,7 +1355,13 @@
       var l = S.lists.filter(function (x) { return x.id === 'default'; })[0];
       if (l && l.trackIds.indexOf(id) < 0) l.trackIds.push(id);
       save(); renderPlayer(); renderView();
-      if (S.overlay === 'detail') { renderOverlay(); loadDetailLyric(tr); }
+      if (S.overlay === 'detail') {
+        /* 详情页渲染时优先用 S.overlayId（支持从列表打开某首的详情），切歌后必须同步成
+         * 当前曲目，否则会出现「声音换了、封面和标题还是上一首」——真机 4127719 实测。 */
+        S.overlayId = tr.id;
+        renderOverlay();
+        loadDetailLyric(tr);
+      }
       else if (S.overlay === 'queue' || S.overlay === 'songlist' || S.overlay === 'boardlist') renderOverlay();
     }).catch(function (e) { toast('播放失败：' + String(e && e.message || e)); });
   }
@@ -2454,15 +2460,16 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
     });
     out.push(diagSection('下载任务', dlLines));
 
-    /* 原生桥轨迹：只记可能拉起系统文件管理器/保存框的动作。冷启动若又弹窗，
-     * 这一段能直接证明是我们调了 picker，还是系统/ArkWeb 自己的行为。 */
+    /* 原生桥轨迹：只记可能拉起系统文件管理器/保存框的动作。注意这一段是**导出动作之前**的
+     * 快照（本次导出自己那次 exportDownload 记录不会出现在里面）。冷启动若又弹窗，
+     * 这段能区分是我们调了 picker、还是 ArkWeb/系统自己的行为。 */
     var natLines = ['(无原生桥)'];
     try {
       if (window.EchoBridge && typeof window.EchoBridge.nativeTrace === 'function') {
         natLines = String(window.EchoBridge.nativeTrace() || '(无)').split('\n');
       }
     } catch (e) { natLines = ['(读取失败: ' + ((e && e.message) || e) + ')']; }
-    out.push(diagSection('原生桥轨迹', natLines));
+    out.push(diagSection('原生桥轨迹（导出前快照）', natLines));
 
     out.push(diagSection('诊断缓冲', devLog.map(function (d) {
       return d.t + ' [' + d.tag + '] ' + d.msg;
