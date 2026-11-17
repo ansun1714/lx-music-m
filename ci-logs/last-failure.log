@@ -20,7 +20,7 @@ android-34
 build.py 3.13.7 (24) / manifest 3.13.7 (24)
 == 生成单文件版 ==
 生成 /home/runner/work/lx-music-m/lx-music-m/app/standalone.html
-  大小 461998 B
+  大小 464544 B
   CSS 3 个，脚本 13 个，字体 base64 17484 字符
   剩余外部引用: 无
 == 逻辑冒烟 ==
@@ -127,6 +127,8 @@ build.py 3.13.7 (24) / manifest 3.13.7 (24)
   PASS  平台验证通过
   PASS  未声明的平台不会误匹配
 [LXDIAG][audio] prepareGraph fail(音效未开启)
+[LXDIAG][play] resolved host=data:audio mime=audio/mpeg headers=-
+[LXDIAG][audio] load platform=kw host=data:audio mime=audio/mpeg kind=stream
   PASS  绑定后平台曲目走在线收听
   PASS  平台曲目播放队列已建立
   PASS  结果页显示条数
@@ -134,6 +136,8 @@ build.py 3.13.7 (24) / manifest 3.13.7 (24)
   PASS  全选生效
   PASS  退出多选清空选择
 [LXDIAG][audio] prepareGraph fail(音效未开启)
+[LXDIAG][play] resolved host=data:audio mime=audio/mpeg headers=-
+[LXDIAG][audio] load platform=kw host=data:audio mime=audio/mpeg kind=stream
   PASS  点曲目行开始播放
   PASS  播放队列已建立
   PASS  PlayerBar 显示当前曲目名
@@ -169,6 +173,8 @@ build.py 3.13.7 (24) / manifest 3.13.7 (24)
   PASS  入队 1 首
   PASS  重复入队被去重
 [LXDIAG][lyric] 测试源/kw => ok 11 字
+[LXDIAG][play] resolved host=data:audio mime=audio/mpeg headers=-
+[LXDIAG][audio] load platform=kw host=data:audio mime=audio/mpeg kind=stream
   PASS  任务完成 state=done
   PASS  进度 100%
   PASS  生成文件大小 = 44 + 8000×时长×2
@@ -195,6 +201,7 @@ build.py 3.13.7 (24) / manifest 3.13.7 (24)
   PASS  onDeviceSaved 记录落盘路径
   PASS  「保存到设备」按钮可重新交付文件
 [LXDIAG][audio] prepareGraph fail(音效未开启)
+[LXDIAG][audio] load platform=- host=blob:shim mime=- kind=downloaded
   PASS  离线模式下已下载曲目可播放
 [LXDIAG][audio] prepareGraph fail(音效未开启)
   PASS  离线模式拦截未下载曲目
@@ -244,6 +251,8 @@ build.py 3.13.7 (24) / manifest 3.13.7 (24)
   PASS  搜索页按平台结果渲染
   PASS  搜索结果显示平台来源说明
 [LXDIAG][audio] prepareGraph fail(音效未开启)
+[LXDIAG][play] resolved host=data:audio mime=audio/wav headers=-
+[LXDIAG][audio] load platform=- host=data:audio mime=audio/wav kind=stream
   PASS  自定义音源曲目走在线收听（engine.mode=stream）
   PASS  在线音频元素已设置播放地址
   PASS  下载任务按音源格式完成
@@ -285,6 +294,8 @@ build.py 3.13.7 (24) / manifest 3.13.7 (24)
   PASS  排行榜主页不再把曲目铺在下面
   PASS  同一音源也自动服务酷狗
 [LXDIAG][audio] prepareGraph fail(音效未开启)
+[LXDIAG][play] resolved host=data:audio mime=audio/mpeg headers=-
+[LXDIAG][audio] load platform=kg host=data:audio mime=audio/mpeg kind=stream
   PASS  有音源提供地址时榜单可播放
   PASS  五个平台都有榜单目录
   PASS  切到酷我后仍渲染榜单卡片
@@ -561,6 +572,7 @@ build.py 3.13.7 (24) / manifest 3.13.7 (24)
   PASS  不再单独放「播放」按钮
   PASS  行内仍有移除按钮
 [LXDIAG][audio] prepareGraph fail(音效未开启)
+[LXDIAG][audio] load platform=kw host=app.echo.local mime=- kind=downloaded
   PASS  已下载曲目改播本地文件（不再回头向音源要地址）
   PASS  本地地址带上了落盘路径
   PASS  同源地址不再套一层媒体代理
