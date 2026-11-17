@@ -20,7 +20,6 @@ import { util, taskpool } from '@kit.ArkTS';
 import { http } from '@kit.NetworkKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { picker } from '@kit.CoreFileKit';
-import { fileShare } from '@kit.CoreFileKit';
 import { preferences } from '@kit.ArkData';
 import { promptAction } from '@kit.ArkUI';
 import { webview } from '@kit.ArkWeb';
@@ -97,10 +96,27 @@ export class EchoBridge {
   private saveDirUri: string = '';
   /** 保存目录是否已从 preferences 回推给 JS（防止每次 onPageEnd 重复回推） */
   private dirRestored: boolean = false;
+  /** 原生侧调用轨迹（只记可能拉起系统 UI 的动作），供 JS 诊断日志回读 */
+  private trace: string[] = [];
+
+  private tr(what: string): void {
+    const t: string = new Date().toTimeString().substring(0, 8);
+    this.trace.push(t + ' ' + what);
+    if (this.trace.length > 60) {
+      this.trace = this.trace.slice(-60);
+    }
+    hilog.info(DOMAIN, TAG, 'trace %{public}s', what);
+  }
+
+  /** JS 诊断日志用：返回原生侧最近的动作轨迹（picker / 授权 / 保存目录） */
+  nativeTrace(): string {
+    return this.trace.length === 0 ? '(无)' : this.trace.join('\n');
+  }
 
   init(ctx: common.UIAbilityContext, web: webview.WebviewController): void {
     this.ctx = ctx;
     this.web = web;
+    this.tr('init');
     this.loadSaveDir();
   }
 
@@ -630,6 +646,7 @@ export class EchoBridge {
 
   /** 把沙箱文件写到用户选定的位置（文件管理器可见），HarmonyOS 无公共目录直写权限 */
   private saveSandboxToUserFile(srcPath: string, name: string, mime: string): void {
+    this.tr('picker.save open');
     if (this.ctx === null) {
       this.toast('保存失败：上下文未就绪');
       return;
@@ -678,6 +695,7 @@ export class EchoBridge {
    * JS: EchoBridge.pickExportDir() → window.LXSaveDir.onDir(uri) / onFail(msg)
    */
   pickExportDir(): void {
+    this.tr('pickExportDir(user action, opens folder picker)');
     const c: common.UIAbilityContext | null = this.ctx;
     if (c === null) {
       return;
@@ -709,19 +727,15 @@ export class EchoBridge {
     });
   }
 
-  /** 记住目录并持久化读写授权 */
+  /**
+   * 记住目录。**不再调用 fileShare.persistPermission**：本机缺少 FolderSelection 能力，
+   * 目录授权本来就用不上，而这两类 fileShare 调用在部分机型上会拉起系统文件管理器。
+   */
   private applySaveDir(uri: string): void {
     this.saveDirUri = uri;
     this.persistSaveDir(uri);
-    hilog.info(DOMAIN, TAG, 'export dir set: %{public}s', uri);
-    fileShare.persistPermission([{
-      uri: uri,
-      operationMode: (fileShare.OperationMode.READ_MODE | fileShare.OperationMode.WRITE_MODE) as fileShare.OperationMode
-    }]).then(() => {
-      hilog.info(DOMAIN, TAG, 'export dir permission persisted');
-    }).catch((err: BusinessError) => {
-      hilog.warn(DOMAIN, TAG, 'persist dir permission failed: %{public}s', err.message);
-    });
+    this.tr('applySaveDir(no persistPermission)');
+    hilog.info(DOMAIN, TAG, 'export dir set');
     this.runJs('window.LXSaveDir&&window.LXSaveDir.onDir(' + this.jsJson(uri) + ')');
   }
 
@@ -793,21 +807,9 @@ export class EchoBridge {
       const code: number = err !== null && err !== undefined && err.code !== undefined ? err.code : 0;
       const msg: string = err !== null && err !== undefined && err.message !== undefined ? err.message : String(err);
       hilog.warn(DOMAIN, TAG, 'export to dir failed: %{public}s code=%{public}d', msg, code);
-      // 常见权限类错误（EPERM 13900001 / EACCES 13900013 / 13900042）：
-      // 系统可能回收了授权，重新激活一次再写；仍失败走下面的分类提示
-      if (allowRetry && (code === 13900001 || code === 13900013 || code === 13900042)) {
-        const uri: string = this.saveDirUri;
-        const mode: fileShare.OperationMode =
-          (fileShare.OperationMode.READ_MODE | fileShare.OperationMode.WRITE_MODE) as fileShare.OperationMode;
-        fileShare.activatePermission([{ uri: uri, operationMode: mode }]).then(() => {
-          hilog.info(DOMAIN, TAG, 'dir permission re-activated, retry write');
-          this.saveToDir(srcPath, name, false);
-        }).catch((e2: BusinessError) => {
-          hilog.warn(DOMAIN, TAG, 're-activate failed: %{public}s', e2.message);
-          this.saveToDir(srcPath, name, false);
-        });
-        return;
-      }
+      /* 权限类错误（EPERM 13900001 / EACCES 13900013 / 13900042）不再调 activatePermission
+       * 重新激活：那会在前台拉起系统文件管理器，是「一打开应用就弹文件管理器」的来源之一。
+       * 直接退回提示，让用户用「保存到文件」导出。 */
       if (code === 13900002) {
         // 目录本身不存在（用户删了文件夹 / 换了存储介质）：清空设置，避免之后每次下载都失败
         this.saveDirUri = '';
@@ -840,6 +842,7 @@ export class EchoBridge {
    * JS: EchoBridge.saveAllDownloads(JSON.stringify([{path,name},...]))
    */
   saveAllDownloads(listJson: string): void {
+    this.tr('saveAllDownloads(user action, opens save picker)');
     const c = this.ctx;
     if (c === null) {
       return;
@@ -904,6 +907,7 @@ export class EchoBridge {
    * JS: EchoBridge.exportDownload(path | 文件名, mime)
    */
   exportDownload(path: string, mime: string): void {
+    this.tr('exportDownload(user action, opens save picker)');
     const src: string = this.resolveDownloadPath(path);
     if (src === '') {
       this.toast('文件不存在');

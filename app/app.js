@@ -2266,7 +2266,28 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
         if (isFinite(seekTo)) engine.seek(seekTo);
         return;
       }
-      case 'fx-toggle': { if (Snd) Snd.setEnabled(!!node.checked); try { if (engine.prepareGraph) engine.prepareGraph(); } catch (e) {} syncAudioGraph(); renderOverlay(); return; }
+      case 'fx-toggle': {
+        /* 真机日志里这个开关出现过「一次点击导致 state 反复翻转」（prepareGraph ok/fail 交替
+         * 十几秒），用户看到的现象就是「音效关不掉」。这里按 state 反推目标值 + 400ms 去重，
+         * 避免重复派发的事件把开关再打开一次。 */
+        var fxNow = Date.now();
+        if (S._fxTapAt && fxNow - S._fxTapAt < 400) {
+          if (window.LXdlog) window.LXdlog('fx', 'fx-toggle 重复事件已丢弃（' + (fxNow - S._fxTapAt) + 'ms）');
+          renderOverlay();
+          return;
+        }
+        S._fxTapAt = fxNow;
+        var onFx = Snd ? !Snd.state().enabled : !!node.checked;
+        if (Snd) Snd.setEnabled(onFx);
+        if (window.LXdlog) window.LXdlog('fx', 'fx-toggle 点击 -> enabled=' + onFx +
+          ' state=' + (Snd ? Snd.state().enabled : '-') + ' bound=' + (engine.isGraphBound ? engine.isGraphBound() : '-'));
+        /* 关闭时不重建元素/不准备音频图：图本身是干净旁路，重建会卡 1~2 秒没声，
+         * 也会让用户误以为「关了没反应」。 */
+        if (onFx) { try { if (engine.prepareGraph) engine.prepareGraph(); } catch (e) {} }
+        syncAudioGraph();
+        renderOverlay();
+        return;
+      }
     case 'fx-diag': {
       var st2 = (engine.getAudioStatus ? engine.getAudioStatus() : {});
       var snd2 = Snd ? Snd.state() : {};
@@ -2432,6 +2453,16 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
       return '· [' + j.state + '] ' + j.name + ' - ' + j.singer + (j.error ? '  err=' + j.error : '');
     });
     out.push(diagSection('下载任务', dlLines));
+
+    /* 原生桥轨迹：只记可能拉起系统文件管理器/保存框的动作。冷启动若又弹窗，
+     * 这一段能直接证明是我们调了 picker，还是系统/ArkWeb 自己的行为。 */
+    var natLines = ['(无原生桥)'];
+    try {
+      if (window.EchoBridge && typeof window.EchoBridge.nativeTrace === 'function') {
+        natLines = String(window.EchoBridge.nativeTrace() || '(无)').split('\n');
+      }
+    } catch (e) { natLines = ['(读取失败: ' + ((e && e.message) || e) + ')']; }
+    out.push(diagSection('原生桥轨迹', natLines));
 
     out.push(diagSection('诊断缓冲', devLog.map(function (d) {
       return d.t + ' [' + d.tag + '] ' + d.msg;

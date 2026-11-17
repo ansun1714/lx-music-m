@@ -42,6 +42,7 @@ struct Index {
             'saveDownloadStart', 'saveDownloadChunk', 'saveDownloadFinish', 'saveText',
             'exportDownload', 'setAutoExport', 'pickExportDir', 'saveAllDownloads',
             'pickScript', 'pickScriptPull', 'pickScriptAck',
+            'nativeTrace',
             'toast', 'exitApp'
           ],
           controller: this.controller

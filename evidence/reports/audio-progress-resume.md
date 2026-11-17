@@ -132,6 +132,23 @@
 
 **未解 / 上游问题**：星海 tx 后端 18:04 连续四首 `QQ 音源暂无可用`（音源侧，客户端无解）；kg 三条后端全失败（含 krc 未解密）；酷我慢源体验仍取决于用户所选音源。
 
+## 0g. 2026-11-17 18:22 真机日志（`lx-diag-2026-11-17-10-22-27.txt`，`7dac9ff`）
+
+**已确认修复生效：腾讯歌词通了。** `18:17:37 [lyric] 平台内置/tx => ok 1061 字`、`18:18:33 平台内置/tx => ok 1696 字`（音源侧 `星海音乐源/tx => fail 返回空` 后由内置接口补上）。酷我慢源也不再出现「开音效没声」：本轮 kw 全程走 `yy1.zddyr.top` / `fsandroid.tx.kugou.com` 快链，`blob play buf=279s`，无 `stall-hold`。
+
+**用户新反馈两条：**
+
+1. **冷启动仍弹系统文件管理器**。JS 侧日志无任何 picker 记录 → 说明不是页面触发的，是原生侧。排查后代码里只剩两处 `fileShare` 调用（`applySaveDir` 的 `persistPermission`、`saveToDir` 的权限重试 `activatePermission`），二者都会拉起系统文件管理器。
+   - `module.json5`：删除 `ohos.permission.FILE_ACCESS_PERSIST` 声明（本机缺 FolderSelection，目录授权本就不可用）。
+   - `EchoBridge.ets`：删除 `fileShare` import 与全部 `persistPermission` / `activatePermission` 调用（含 `saveToDir` 的权限重试分支，改为直接提示「用保存到文件导出」）。自此原生侧**不存在任何非用户点击的 picker / 授权调用**。
+   - `EchoBridge.ets` 新增 `nativeTrace()`：只记录可能拉起系统 UI 的动作（`init` / `loadSaveDir` / `pickExportDir` / `exportDownload` / `saveAllDownloads` / `picker.save open` / `applySaveDir`），`buildDiagnosticLog()` 新增「原生桥轨迹」段。若下一版仍弹窗，这一段能直接证明是我们调的 picker、还是系统/ArkWeb 自发行为。
+2. **酷狗平台音效关不掉**。日志证据：`18:21:17~18:21:35` 出现 `prepareGraph fail(音效未开启)` 与 `prepareGraph ok` 交替 11 次（间隔 1~2 秒），导出时 `enabled=true`。即**一次点击能让开关状态翻转两次**，用户看到的就是「关不掉」。
+   - `app/app.js` `fx-toggle`：改为按 `Snd.state().enabled` 反推目标值，并对 400ms 内的重复事件去重丢弃；记录 `fx-toggle 点击 -> enabled=X state=X bound=X`。关闭时不再调用 `engine.prepareGraph()`（避免无谓重建元素、卡 1~2 秒没声）。
+   - `app/sound-effects.js` `setEnabled`：补 `LXdlog('fx','setEnabled -> X mounted=X')`，与上面一行可一一对照，判断是「点击被重复派发」还是「别处又把开关打开」。
+   - 说明：关闭时引擎仍保留音频图作**干净旁路**（EQ 全 0、湿声 0），不换元素——这是上一版为避免「关一下就没声」特意保留的行为，不影响听感。
+
+**离线校验**：`node --check app/app.js`、`app/sound-effects.js` 通过；`node evidence/audio-graph-tests.js` **PASS=11 FAIL=0**。真机仍未验证。
+
 ## 一、当前测试状态（严格按任务书口径）
 
 | 项 | 状态 |

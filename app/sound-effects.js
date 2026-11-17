@@ -245,6 +245,7 @@
   function setEnabled(on) {
     // 关掉时只旁路，保留用户已配的 EQ / 混响 / 环绕
     state.enabled = !!on;
+    if (window.LXdlog) window.LXdlog('fx', 'setEnabled -> ' + state.enabled + ' mounted=' + mounted);
     apply(); save(); emit();
   }
   function setPreset(name) {
