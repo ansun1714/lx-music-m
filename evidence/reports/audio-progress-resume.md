@@ -29,6 +29,21 @@
 - **中途开总开关静音**：`attachEl()` 对活动元素（`!el.paused && readyState>=2`）拒绝直接补挂，改走已验证的 Blob 重建路径；切歌带音效回归确认。
 - **酷我歌词**：空结果/非 JSON 延迟 700ms 重试一次；`lyricPending` 进行中缓存消除并发竞态；`clearLyric` 同步清 pending。
 
+## 0c. 2026-11-17 晚：应用内诊断日志导出（代码已落地，待出包真机验证）
+
+**背景**：hdc 直连仍不通，改在 APP 内汇总日志并导出文件，用户回传分析。
+
+- hdc 现状：便携 hdc `Ver 3.1.0e` 与 SDK 15 `E:\dev\ohos\sdk\15\toolchains\hdc.exe` 均 `list targets [Empty]`；PnP 仅 `HUAWEI Pura 70 Pro+`（WPD，OK，`USB\VID_12D1&PID_1101\33Z0224703029804`）；隐藏/历史项里 `HDC Device` PID_5000、`HDC Interface` PID_1101&MI_00、Remote NDIS PID_108A、MTP PID_107E 状态均 **Unknown**（驱动未绑定/未启动）；ARP WLAN 段无华为设备 MAC，无线 hdc 未建立。
+- 待排障新现象（未抓到真机日志，根因未确认）：
+  1. 换木兰/星海音源后 QQ 歌曲能在线播放，但**切歌偶发「音频加载失败」**，多切几次可播——竞态/资源释放类嫌疑；相关代码 `engine.js` `_createEl` error 监听、`stop()` 旧元素摘 src、`_playViaBuffer`/`_swapViaBlob` 异步回调；`app.js` `onError` 仅 toast + `S.playing=false`，无自动重试。
+  2. **QQ 歌曲歌词返回空**：截图诊断「平台内置/kw: 返回空」「星海音乐源/tx: 返回空(null)」；`platformLyric(track)` 按 `track.platform` 选 wy/kw/mg/kg 分支，tx 无内置实现；需核对木兰/星海曲目 `platform/apiSource` 字段映射与 tx 歌词接口是否缺失。
+- 落地改动（仅 `app/app.js`，未动原生桥，复用现有 `saveText`/`exportDownload`，`Index.ets` methodList 无需补）：
+  - `devLog` 环形缓冲 500 条；`LXdlog` 同时写缓冲 + hilog + console；补 `window.onerror` / `unhandledrejection` 捕获进缓冲。
+  - `buildDiagnosticLog()` 分段汇总：头部（时间/UA/队列/当前曲目/音源错误/播放位置）、引擎自检、音效状态、音源列表（name/id/status/enabled/builtin/platforms）、歌词诊断 `SR.lyricDiag()`、音源运行日志 `SR.logs()`、错误日志 `S.errorLog`、同步日志、下载任务 `DL.all()`、诊断缓冲。
+  - 设置 → 其他缓存管理：新增「诊断日志 · 导出」行，`data-act="log-export"`；`exportDiagnostic()` 先 `saveText('lx-diag-<时间戳>.txt', text)` 落沙箱 `downloads/`，再 `exportDownload(name,'text/plain')` 拷到用户可访问目录；无桥环境降级 Blob 下载。
+- 本地注意：`node evidence/build-standalone.js` / `inject-bridge-patch.js` 在本机对 `app/` 目录写文件报 EPERM（受控文件夹访问拦 node.exe）；CI 在 Linux 重新内联打包，不影响出包。`node --check app.js` 通过，离线基线仍 **PASS=11 FAIL=0**。
+- 待真机验证：导出文件能打开、中文不乱码、各分段有内容；复现切歌失败 / 歌词空后再导出回传，据此定位根因。
+
 ## 一、当前测试状态（严格按任务书口径）
 
 | 项 | 状态 |

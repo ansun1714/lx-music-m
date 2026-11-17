@@ -8,12 +8,31 @@
 
   var D = window.LXData, DL = window.LXDownload, T = window.LXTheme, SR = window.LXSources;
   var Q = window.LXQuality, Snd = window.LXSound, Lyr = window.LXLyr;
-  /* 真机诊断日志：HAP 走原生桥写 hilog（A00D00 / LXMusicBridge），浏览器只看 console */
+  /* 真机诊断日志：HAP 走原生桥写 hilog（A00D00 / LXMusicBridge），浏览器只看 console；
+   * 同时在内存里留一份环形缓冲，供「导出诊断日志」汇总成文件，免去每次连 hdc 抓日志。 */
+  var devLog = [];
   window.LXdlog = function (tag, msg) {
     var line = '[' + tag + '] ' + msg;
+    try {
+      devLog.push({ t: new Date().toLocaleTimeString('zh-CN'), tag: String(tag), msg: String(msg) });
+      if (devLog.length > 500) devLog.shift();
+    } catch (e) {}
     try { if (window.EchoBridge && typeof EchoBridge.jsLog === 'function') EchoBridge.jsLog(tag, String(msg)); } catch (e) {}
     try { console.log('[LXDIAG]' + line); } catch (e) {}
   };
+  /* 未捕获异常与未处理 Promise 拒绝也进诊断缓冲，避免崩溃现场只留在 hilog 里 */
+  try {
+    window.addEventListener('error', function (ev) {
+      var msg = (ev && ev.message) || 'unknown error';
+      if (ev && ev.filename) msg += ' @ ' + ev.filename + ':' + (ev.lineno || '');
+      devLog.push({ t: new Date().toLocaleTimeString('zh-CN'), tag: 'error', msg: String(msg) });
+    });
+    window.addEventListener('unhandledrejection', function (ev) {
+      var r = ev && ev.reason;
+      var msg = r ? (r.message || String(r)) : 'unhandled rejection';
+      devLog.push({ t: new Date().toLocaleTimeString('zh-CN'), tag: 'reject', msg: String(msg) });
+    });
+  } catch (e) {}
   var KEY = 'lx_state_v1';
   var ICON = {
     nav_search: 'search-2', nav_songlist: 'album', nav_top: 'leaderboard',
@@ -1211,6 +1230,9 @@
         '<div class="set-row"><div class="sr-main"><div class="sr-name">错误日志</div>' +
         '<div class="sr-desc">' + S.errorLog.length + ' 条</div></div>' +
         '<button class="btn sm" data-act="log-clear">清理</button></div>' +
+        '<div class="set-row"><div class="sr-main"><div class="sr-name">诊断日志</div>' +
+        '<div class="sr-desc">汇总引擎 / 音源 / 歌词 / 错误日志，导出为文件回传分析</div></div>' +
+        '<button class="btn sm" data-act="log-export">导出</button></div>' +
         '<div class="set-row"><div class="sr-main"><div class="sr-name">已下载文件</div>' +
         '<div class="sr-desc">' + DL.stats().done + ' 个 · ' + DL.stats().sizeText + '</div></div>' +
         '<button class="btn sm" data-act="dl-clear-finished">清理已完成</button></div>' +
@@ -2274,6 +2296,7 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
       case 'sync-connect': logSync('尝试连接 ' + (S.sync.addr || 'localhost') + ':' + (S.sync.port || '23332'));
         S.sync.connected = true; renderOverlay(); return;
       case 'log-clear': S.errorLog = []; save(); renderOverlay(); return;
+      case 'log-export': exportDiagnostic(); return;
       case 'import-list': pickFile(function (text) {
         try {
           var d = JSON.parse(text), ids = (d.tracks || d.list || []).map(function (x) {
@@ -2297,6 +2320,89 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
   function logSync(msg) {
     S.sync.log.unshift(new Date().toLocaleTimeString('zh-CN') + ' ' + msg);
     S.sync.log = S.sync.log.slice(0, 20); save();
+  }
+  function diagSection(title, lines) {
+    return '\n==== ' + title + ' ====\n' + (lines && lines.length ? lines.join('\n') : '(无)');
+  }
+  /* 汇总内存里能拿到的全部诊断信息：引擎自检 / 音效 / 音源列表 / 歌词诊断 / 运行日志 /
+   * 错误日志 / 下载任务 / 诊断缓冲，打成纯文本导出，供回传分析（替代 hdc 抓 hilog）。 */
+  function buildDiagnosticLog() {
+    var out = [];
+    var tr = currentTrack();
+    var st = (engine.getAudioStatus ? engine.getAudioStatus() : {});
+    var snd = Snd ? Snd.state() : {};
+    out.push('==== LX Music 诊断日志 ====');
+    out.push('导出时间: ' + new Date().toLocaleString('zh-CN'));
+    out.push('UA: ' + navigator.userAgent);
+    out.push('队列: ' + Math.min(S.index + 1, S.queue.length) + '/' + S.queue.length + ' · 模式=' + (S.mode || '-'));
+    if (tr) {
+      out.push('当前曲目: ' + (tr.name || '') + ' · ' + (tr.singer || ''));
+      out.push('  id=' + tr.id + ' platform=' + (tr.platform || '-') + ' apiSource=' + (tr.apiSource || '-'));
+      var le = SR.lastError(tr);
+      if (le) out.push('  音源错误: ' + le);
+    } else {
+      out.push('当前曲目: (无)');
+    }
+    out.push('播放: playing=' + !!engine.playing + ' pos=' +
+      (engine.position ? Math.round(engine.position() * 10) / 10 : '-') + 's' +
+      ' duration=' + (tr && tr.duration ? tr.duration : '-'));
+
+    out.push(diagSection('引擎自检', [
+      'ctx=' + st.ctxState + ' ac=' + st.acAvailable + ' snd=' + st.soundLoaded,
+      'bound=' + st.bound + ' healthy=' + st.graphHealthy + ' media=' + st.mediaBound + ' mounted=' + st.mounted,
+      'gen=' + st.ctxGen + ' mode=' + (st.mode || '-') + ' el=' + !!engine.el,
+      'graphHost=' + (st.graphHost || '-') + ' lite=' + st.liteUrl + ' pending=' + !!st.blobPending,
+      'lastError=' + (st.lastError || '(无)')
+    ]));
+    out.push(diagSection('音效状态', [
+      'enabled=' + snd.enabled + ' preset=' + snd.preset + ' reverb=' + snd.reverb,
+      'surround=' + !!snd.surround + ' eq=' + JSON.stringify(snd.eq)
+    ]));
+
+    var srcLines = SR.list().map(function (a) {
+      var plats = a.sources ? Object.keys(a.sources).join(',') : '-';
+      return '· ' + (a.name || a.id) + ' id=' + a.id + ' status=' + (a.status || '-') +
+        ' enabled=' + !!a.enabled + ' builtin=' + !!a.builtin + ' platforms=' + plats;
+    });
+    out.push(diagSection('音源列表', srcLines));
+    out.push(diagSection('歌词诊断', SR.lyricDiag()));
+    out.push(diagSection('音源运行日志', SR.logs()));
+    out.push(diagSection('错误日志', S.errorLog.slice()));
+    out.push(diagSection('同步日志', S.sync.log.slice()));
+
+    var dlLines = DL.all().map(function (j) {
+      return '· [' + j.state + '] ' + j.name + ' - ' + j.singer + (j.error ? '  err=' + j.error : '');
+    });
+    out.push(diagSection('下载任务', dlLines));
+
+    out.push(diagSection('诊断缓冲', devLog.map(function (d) {
+      return d.t + ' [' + d.tag + '] ' + d.msg;
+    })));
+    return out.join('\n');
+  }
+  function exportDiagnostic() {
+    var text = buildDiagnosticLog();
+    var stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    var name = 'lx-diag-' + stamp + '.txt';
+    var B = window.EchoBridge;
+    if (B && typeof B.saveText === 'function') {
+      try {
+        B.saveText(name, text);
+        if (typeof B.exportDownload === 'function') { try { B.exportDownload(name, 'text/plain'); } catch (e) {} }
+        toast('诊断日志已导出：' + name);
+      } catch (e) { toast('导出失败：' + e.message); }
+    } else {
+      try {
+        var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+      } catch (e) {}
+      toast('浏览器环境已触发下载');
+    }
   }
   function applySettings(noRender) {
     var b = document.body;
