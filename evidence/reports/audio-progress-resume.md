@@ -1,8 +1,19 @@
 # 音效 / 歌词 主线进度存档（明日续点）
 
-- 存档时间：2026-11-16 晚（用户收工）
-- 仓库：`E:\AI\重构软件`，远端 `ansun1714/lx-music-m`，HEAD = `c8b3d57`（已推送，Release `hap-latest` 已出包）
-- 本轮产物 HAP：`C:\temp\LXMusic-hap-new.hap`，628,244 B，未签名（对应 `c8b3d57`）
+- 存档时间：2026-11-17 凌晨（用户收工前更新）
+- 仓库：`E:\AI\重构软件`，远端 `ansun1714/lx-music-m`，HEAD = `0d0b2ea`（已推送，Release `hap-latest` 已出包）
+- 本轮产物 HAP：`C:\temp\LXMusic-hap-new.hap`，629,468 B，未签名（对应 `0d0b2ea`）
+
+## 0. 2026-11-17 凌晨真机复测结论（装的是 `c8b3d57`，02:38 / 02:44 两张自检）
+
+自检已接上图：`ctx=running ac=true snd=true bound=true healthy=true media=true mounted=true el=true playing=true`，`graphHost=f_sandroid.tx.kugou.com / m801.music.126.net`，`lite=true pending=false lastError=(无)`。**接图链路本身通了。**
+
+用户反馈的两个真实残留：
+1. **播放中途打开音效总开关 → 没声音**；带着音效切歌 → 音效正常有效。
+   - 根因判断：`c8b3d57` 新增的 `attachEl()` 把「已在原生出声的活动解码器」直接补挂 `createMediaElementSource`。ArkWeb 不会把当前解码帧喂给该源节点，自检显示 `bound=true` 但全程静音；而切歌走的是 Blob 换新元素路径（`_swapViaBlob`→`_cloneFrom`），那条路径正常。
+   - `0d0b2ea` 修复：`attachEl()` 对 `!el.paused && readyState>=2` 的活动元素直接拒绝补挂（返回 false），`syncAudioGraph` 随后落到 `rebuild()` 走已验证的 Blob 重建。
+2. **歌词**：网易基本正常（切歌即出词）；酷我有时出词、有时空，重复开关歌词几次才刷出；咪咕/酷狗仍取不到。
+   - `0d0b2ea`：酷我空结果/非 JSON 延迟 700ms 重试一次；歌词请求加 `lyricPending` 进行中缓存，消除并发重复打链与竞态覆盖；`clearLyric` 同步清 pending。
 
 ## 一、当前测试状态（严格按任务书口径）
 
@@ -10,7 +21,7 @@
 |---|---|
 | 离线回归 `evidence/audio-graph-tests.js` | **PASS=11 FAIL=0 TOTAL=11** |
 | `node --check`（engine/sources/lyrics/app） | PASS |
-| HARMONY_REAL_DEVICE_TEST | **PENDING**（`c8b3d57` 未真机验证；hdc 本轮探测 `[Empty]`） |
+| HARMONY_REAL_DEVICE_TEST | **PENDING**（`0d0b2ea` 未真机验证；hdc 本轮探测 `[Empty]`） |
 | ANDROID_EMULATOR_TEST | NOT_AVAILABLE（未探测 SDK/AVD） |
 | ANDROID_REAL_DEVICE_TEST | PENDING |
 | 腾讯平台 | 用户明确暂不测 |
@@ -87,6 +98,14 @@ node evidence/audio-graph-tests.js     # 基线 PASS=11 FAIL=0
 
 ## 七、提交链
 
-`153229a`（Blob 失败降级 buffer）→ `227dff3`（128k 地址 + 咪咕/酷我兜底）→ `2a139bb`（逐块 Base64、兜底顺序、酷我新接口、kg 标注）→ `c8b3d57`（lite.then 的 this、attachEl、pending、咪咕文本兜底、视口坐标滚动）
+`153229a`（Blob 失败降级 buffer）→ `227dff3`（128k 地址 + 咪咕/酷我兜底）→ `2a139bb`（逐块 Base64、兜底顺序、酷我新接口、kg 标注）→ `c8b3d57`（lite.then 的 this、attachEl、pending、咪咕文本兜底、视口坐标滚动）→ `0d0b2ea`（活动元素拒绝补挂改走 Blob 重建；酷我重试一次；歌词进行中缓存）
 
-体积：`153229a`=622,924 / `227dff3`=624,554 / `2a139bb`=626,353 / `c8b3d57`=628,244
+体积：`153229a`=622,924 / `227dff3`=624,554 / `2a139bb`=626,353 / `c8b3d57`=628,244 / `0d0b2ea`=629,468
+
+## 八、下一轮真机待验证清单
+
+1. **中途开总开关**：先原生播一首 → 不切歌直接开音效总开关。预期：短暂走 Blob 缓存（自检 `pending=true` 片刻）后 `bound=true media=true` 且**有声音、音效可闻**。若仍静音，抓 hilog `[audio]` 看是否进了 `_swapViaBlob`、`graph fetch` host、`Blob 接管失败` 或 buffer 退路。
+2. **切歌带音效**：回归确认仍正常（不能改坏这条已通路径）。
+3. **酷我歌词**：多切几首酷我，看是否一次出词；仍空则看自检/诊断里 `平台内置/kw` 的 detail（返回空 / HTTP 状态 / 非 JSON）。
+4. **咪咕**：确认文本兜底是否生效；若仍「不是 JSON/返回空」，需在真机抓原始响应体前 200 字判断是反爬页还是 gzip。
+5. **网易高亮位置**：视口坐标方案后是否居中；若仍整体偏，转时间基准排查（`[offset]` 方向、indexAt 容差）。
