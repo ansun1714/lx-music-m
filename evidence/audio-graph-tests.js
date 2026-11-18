@@ -155,6 +155,20 @@ check('T15', '反复开关 3D 环绕不产生重复定时器', () => {
   sandbox.LXSound.setSurround(false);
 });
 
+check('T16', '关闭音效 / 未开环绕时不串全景声节点（链路增益恒等）', () => {
+  const eng = new sandbox.LXEngine();
+  eng._ensureCtx();
+  const S = sandbox.LXSound;
+  S.setEnabled(false);
+  assert(S.route() === 'direct', '关闭态仍串在 panner：' + S.route());
+  S.setSurround(true);                       // 打开环绕会自动开启音效
+  assert(S.route() === 'panner', '开环绕后未串 panner：' + S.route());
+  S.setSurround(false);
+  assert(S.route() === 'direct', '关环绕后仍串在 panner：' + S.route());
+  S.setEnabled(false);
+  assert(S.route() === 'direct', '关闭音效后仍串在 panner：' + S.route());
+});
+
 check('L01', '歌词解析：时间轴 / 翻译 / offset', () => {
   const parsed = sandbox.LXLyr.parse('[offset:200]\n[00:01.50]第一句\n[00:03.00]第二句\n[00:03.00]Second line');
   assert(parsed.hasTime === true, '应识别为带时间轴');

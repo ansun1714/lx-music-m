@@ -184,6 +184,35 @@
 
 **离线校验**：`node --check app/app.js`、`app/sound-effects.js` 通过；`node evidence/audio-graph-tests.js` **PASS=11 FAIL=0**。真机仍未验证。
 
+## 0k. 2026-11-18 音效音量不恢复（`c9d1e96` → 本轮修复）
+
+**用户反馈**：原声很洪亮；开音效后声音小了不少；把音效关掉，音量也回不来。
+
+**根因**：音频图里 `PannerNode`（HRTF 3D 环绕）是**永久串在输出链上的**——`mount()` 里
+`mix.connect(pan); pan.connect(destination)` 一次写死，`apply()` 只在开关变化时改 EQ 增益
+和干/湿声增益，从不改路由。于是：
+
+- 开音效 → 声音要过 HRTF 全景声节点，结构性衰减一截（用户听到「小了不少」）；
+- 关音效 → `dry=1 / wet=0 / EQ=0` 都设对了，但音频**仍然过 HRTF 节点**，衰减继续存在；
+- 又因为「关掉音效后保留音频图做干净旁路（不换元素，避免关一下就没声）」是上一轮的刻意设计，
+  这条链一直挂着，所以音量「回不来」，只能杀进程重开。
+
+**修复（`sound-effects.js`）**：
+
+1. 新增 `routeOut(usePanner)`：只有**真正开着 3D 环绕**时才把 `mix` 串进 `PannerNode`，
+   其它情况（音效关闭、或开着但没开环绕）一律 `mix → destination` 直连，链路增益恒等于 1。
+2. `mount()` 改为 `mix.connect(output)` 直连，不再写死 `mix→pan→output`；路由交给 `apply()`。
+3. `apply()` 的关闭分支补 `routeOut(false)`；开启分支按 `state.surround` 决定 `routeOut(true|false)`。
+4. `teardown()` 复位 `pannerInChain`；新增 `LXSound.route()`（返回 `panner`/`direct`）供诊断日志使用。
+5. 诊断日志「音效状态」新增 `route=` 一行，下次一眼能看出是否还挂在 HRTF 上。
+6. 兜底守卫：`mixGain.disconnect()` 只断自己的输出，不动其它节点；panner 重连失败自动降级直连并记 `fx` 日志。
+
+**离线回归**：新增 `T16`（关闭音效/未开环绕 → `route==='direct'`，开环绕 → `'panner'`，关环绕/关音效回到 `'direct'`），
+总量 **PASS=12 FAIL=0**。
+
+**若真机仍偏小**：下一个可调点是混响干声系数（`REVERBS[].main`，当前 0.85/0.8/0.75），
+官方值 + 程序生成 IR 的组合可能让干声偏低；可改为 1.0 并降低 `send`，或给 `mixGain` 加能量补偿。
+
 ## 0j. 2026-11-18 09:43 冷启动弹窗定论（`aa02971`，1,631 B）
 
 **根因找到：`app.js` 的 `boot()` 末尾无条件调 `EchoBridge.pickScriptPull()`，而原生 `pickScriptPull()` 的实现就是 `this.pickScript()` → `DocumentViewPicker.select()` → 直接拉起系统文件选择器。所以每次冷启动/页面重建都弹一次。**

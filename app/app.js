@@ -2433,7 +2433,9 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
     out.push(diagSection('音频元素', elLines));
     out.push(diagSection('音效状态', [
       'enabled=' + snd.enabled + ' preset=' + snd.preset + ' reverb=' + snd.reverb,
-      'surround=' + !!snd.surround + ' eq=' + JSON.stringify(snd.eq)
+      'surround=' + !!snd.surround + ' eq=' + JSON.stringify(snd.eq),
+      // route=direct 表示没串 HRTF 全景声节点（链路增益恒等）；route=panner 只在开了环绕时出现
+      'route=' + (window.LXSound && typeof window.LXSound.route === 'function' ? window.LXSound.route() : '-')
     ]));
 
     var srcLines = SR.list().map(function (a) {

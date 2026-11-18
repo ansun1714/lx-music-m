@@ -44,6 +44,8 @@
   var eqNodes = [], dryGain = null, wetGain = null, mixGain = null;
   var convolver = null, panner = null, mounted = false, mountedCtx = null;
   var surroundTimer = null, angle = 0, lastIR = '';
+  /** 当前输出是否串在 PannerNode 上。见 routeOut()：未开环绕时必须是 false。 */
+  var pannerInChain = false;
   var listeners = [];
 
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
@@ -153,6 +155,36 @@
     } catch (e) {}
   }
 
+  /* 输出路由：只有真正开着 3D 环绕时，才把 mix 串进 PannerNode。
+   *
+   * 之前是「无论如何都永久串着 HRTF 全景声节点」，于是：
+   * - 开着音效时声音被 HRTF 结构性衰减一截；
+   * - 关掉音效后音频图仍保留（为了不出现「关一下就没声」），衰减继续存在，
+   *   所以「关掉音效音量也回不来」，只能杀进程重开。
+   * 真机反馈：原声很洪亮 → 开音效小了不少 → 关掉回不来，正是这条链。
+   * 未开环绕时直连输出，链路增益恒等于 1。 */
+  function routeOut(usePanner) {
+    if (!mixGain || !outNode) return;
+    usePanner = !!usePanner && !!panner;
+    if (pannerInChain === usePanner) return;
+    try { mixGain.disconnect(); } catch (e) {}
+    if (usePanner) {
+      try {
+        panner.disconnect();
+        mixGain.connect(panner);
+        panner.connect(outNode);
+        pannerInChain = true;
+        if (window.LXdlog) window.LXdlog('fx', 'route -> panner');
+        return;
+      } catch (e) {
+        if (window.LXdlog) window.LXdlog('fx', 'route panner fail: ' + (e && e.message || e));
+      }
+    }
+    try { mixGain.connect(outNode); } catch (e) {}
+    pannerInChain = false;
+    if (window.LXdlog) window.LXdlog('fx', 'route -> direct');
+  }
+
   /* 释放整条效果链（幂等）。engine 换 AudioContext / 重建图前必须调用，
    * 否则旧上下文节点会被反复复用（跨上下文连接 = 静默失效）。 */
   function teardown() {
@@ -171,6 +203,7 @@
     ctx = null;
     mountedCtx = null;
     mounted = false;
+    pannerInChain = false;
     lastIR = '';
   }
 
@@ -202,8 +235,8 @@
       var last = eqs[eqs.length - 1];
       last.connect(dry); dry.connect(mix);
       last.connect(conv); conv.connect(wet); wet.connect(mix);
-      mix.connect(pan);
-      pan.connect(output || audioCtx.destination);
+      // 输出先直连；是否串 PannerNode 由 apply() → routeOut() 决定（未开环绕不串）
+      mix.connect(output || audioCtx.destination);
     } catch (e) {
       try {
         if (eqs) for (var j = 0; j < eqs.length; j++) eqs[j].disconnect();
@@ -233,12 +266,16 @@
       try { eqNodes[i].gain.setTargetAtTime(v, t, 0.03); } catch (e) { eqNodes[i].gain.value = v; }
     }
     if (!state.enabled) {
+      /* 关闭 = 严格等增益旁路：EQ 归零、湿声 0、干声 1、脱离全景声节点。
+       * 差任何一个都会表现为「关掉音效音量也回不到原声」。 */
       dryGain.gain.value = 1; wetGain.gain.value = 0;
       stopPanner();
+      routeOut(false);
       return;
     }
     setIR(state.reverb);
-    if (state.surround) startPanner(); else stopPanner();
+    if (state.surround) { startPanner(); routeOut(true); }
+    else { stopPanner(); routeOut(false); }
   }
 
   // ---------------------------------------------------------------- 控制
@@ -313,6 +350,7 @@
     setReverb: setReverb,
     setSurround: setSurroundOn,
     reset: reset,
+    route: function () { return pannerInChain ? 'panner' : 'direct'; },
     onChange: function (fn) { if (typeof fn === 'function') listeners.push(fn); }
   };
 })();
