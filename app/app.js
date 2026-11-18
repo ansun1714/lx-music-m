@@ -2702,7 +2702,9 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
       if (b) b.textContent = DL.stats().done;
     });
     render();
-    // 选择文件期间若 WebView 被系统回收，页面重建后主动取回 Java 暂存的结果
+    // 选择文件期间若 WebView 被系统回收，页面重建后主动取回暂存结果。
+    // 注意：鸿蒙侧 pickScriptPull 现在是**空操作**（原生不缓存选择结果）。此前它被实现成
+    // 「再调一次 pickScript」，于是每次冷启动/页面重建都会拉起系统文件选择器（真机实测）。
     try {
       if (window.EchoBridge && EchoBridge.pickScriptPull) EchoBridge.pickScriptPull();
     } catch (e) {}

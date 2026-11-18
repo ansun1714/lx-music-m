@@ -184,6 +184,28 @@
 
 **离线校验**：`node --check app/app.js`、`app/sound-effects.js` 通过；`node evidence/audio-graph-tests.js` **PASS=11 FAIL=0**。真机仍未验证。
 
+## 0j. 2026-11-18 09:43 冷启动弹窗定论（`aa02971`，1,631 B）
+
+**根因找到：`app.js` 的 `boot()` 末尾无条件调 `EchoBridge.pickScriptPull()`，而原生 `pickScriptPull()` 的实现就是 `this.pickScript()` → `DocumentViewPicker.select()` → 直接拉起系统文件选择器。所以每次冷启动/页面重建都弹一次。**
+
+为什么前五轮都没抓到：
+
+1. `pickScript()` / `pickScriptPull()` 全都没有 `tr()` 打点，`nativeTrace` 里自然一片空白；
+2. 日志快照在导出之前取，`exportDownload` 也不在段内；
+3. 于是出现「轨迹只有 `init` + 真机上确实弹了选择器」这种自相矛盾的组合。
+
+截图确认弹的是**原生选择器面板**（顶部「最近 / 浏览」、搜索框、图片/视频/文档/音频/压缩包分类、位置「我的手机 / 我的云盘」、来源「下载 / 华为分享 / 图库 / 录音机 / 浏览器」、底部「仅可访问所选文件」），不是文件管理器 App，也不是页面 `<input type=file>` 的 Web 选择器——`onShowFileSelector` 那条路是干净的（没有 `已拦截` 记录）。
+
+**修复（`aa02971` → 本轮）：**
+
+1. `EchoBridge.pickScriptPull()` 改为**空操作**：只写一行轨迹 `pickScriptPull(空操作：无暂存结果，不打开选择器)`。原生侧本来就不缓存选择结果（`pickScript` 直接把内容 `runJs` 投递给页面），这个「取回暂存」本来就是空语义。
+2. `pickScript()` 入口补 `tr('pickScript(user action, opens file picker)')`，以后任何一次选择器打开都能在轨迹里看到。
+3. `app.js` 对应位置补注释，说明鸿蒙侧是空操作。
+
+**启动时间线（`aa02971` 实测，作为对照基线）：** `09:43:34 ability onCreate` → `windowStage create` → `loadContent done` → `init` → `ui aboutToAppear` → `web attach` → `09:43:35 web pageBegin` → `web pageEnd`，音源初始化 `09:43:35`。全程 1 秒内完成，说明弹窗不是慢加载导致，就是 `pageEnd` 之后那次 `pickScriptPull()`。
+
+**顺带得到的结论**：`fileAccess(true)` 与弹窗无关（无需为它牺牲本地播放），`onShowFileSelector` 接管也可以保留作为兜底。
+
 ## 0i. 2026-11-18 08:25 冷启动复测（`98b87b8`，应用内截图日志）
 
 **结论：`onShowFileSelector` 接管无效——冷启动弹窗既不是 Bridge picker，也不是 ArkWeb 页面文件选择请求。**

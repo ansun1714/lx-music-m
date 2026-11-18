@@ -1027,6 +1027,7 @@ export class EchoBridge {
   }
 
   pickScript(): void {
+    this.tr('pickScript(user action, opens file picker)');
     this.pickAcked = false;
     const c = this.ctx;
     if (c === null) {
@@ -1079,8 +1080,18 @@ export class EchoBridge {
     });
   }
 
+  /**
+   * 页面（WebView 被回收后重建）启动时取回「暂存的选择结果」。
+   *
+   * ⚠️ 绝对不能在这里调用 pickScript()。pickScript() 会直接 `DocumentViewPicker.select()`
+   * 拉起系统文件选择器，而 app.js 的 boot() 末尾**无条件**调用本方法 → 每次冷启动/页面重建
+   * 都会弹一次系统文件选择器。真机 `aa02971` 实测截图确认：弹的就是「最近 / 浏览 · 仅可访问
+   * 所选文件」的原生选择器面板，而 nativeTrace 一直是空的，就是因为这里既没有守卫也没有打点。
+   *
+   * 当前原生侧并不缓存选择结果（pickScript 把内容直接 runJs 投递给页面），所以这里只做空操作。
+   */
   pickScriptPull(): void {
-    this.pickScript();
+    this.tr('pickScriptPull(空操作：无暂存结果，不打开选择器)');
   }
 
   pickScriptAck(): void {
