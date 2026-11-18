@@ -184,6 +184,41 @@
 
 **离线校验**：`node --check app/app.js`、`app/sound-effects.js` 通过；`node evidence/audio-graph-tests.js` **PASS=11 FAIL=0**。真机仍未验证。
 
+## 0l. 2026-11-18 10:24 复测（`81e7fe9`）：route 已修好，但音量仍未恢复 → 二次根因
+
+**日志事实（`lx-diag-2026-11-18-02-24-06.txt`，7,061 B）：**
+
+- 导出时 `enabled=false preset=流行 reverb=none surround=false`、**`route=direct`** → PannerNode 确实已经脱离链路，
+  0k 的修复生效；但用户仍反馈「关音效音量回不来」。
+- 对账 `10:22:44 setEnabled -> true mounted=false` → `ensureMounted=true` → `prepareGraph ok` → `blob play`；
+  `10:22:56 setEnabled -> false mounted=true`；`10:23:39 → true`；`10:23:44/50 → false`。
+  每次关闭后 **`mounted=true` 依旧**，说明音频图没被拆，音频仍在走 WebAudio。
+
+**二次根因：关音效只旁路、不离开 WebAudio 通路。**
+
+`engine.rebuild()` 里 `!want` 分支是刻意早退的（注释写着「留着它就是干净的旁路」），
+目的是避免换元素带来的 1~2 秒静音。但鸿蒙 ArkWeb 实测：
+**`<audio> → MediaElementSource → AudioContext.destination` 这条通路本身比 `<audio>` 元素直出小一截**，
+图里所有增益（gain / EQ 0dB / dry 1 / wet 0 / mix 1）都是 1 也救不回来。
+于是「开音效变小」= 走 WebAudio；「关音效回不来」= 关了还在走 WebAudio。
+
+**修复（本轮）：**
+
+1. `engine.rebuild()` 的 `!want` 分支改为**真正回原生**：断开 MediaElementSource、`LXSound.teardown()`、
+   `_graphMounted=false`，然后用当前元素的 `currentSrc`（blob: 或 http 都可用）**新建一个不挂图的原生元素**，
+   回填位置/速率/音量后继续播。MediaElementSource 不可撤销，换元素是唯一能回到原生输出的方式。
+2. `sound-effects.js` 新增 `state.trim`（输出补偿 0.5~2.0，默认 1.0）：
+   `apply()` 里 `mixGain.gain = enabled ? trim : 1`——**关闭态恒为 1**，不会再制造「关掉回不到原声」。
+3. 音效页新增「音量补偿」滑条（80%~200%，5% 步进，拖动即时生效，不重渲染），
+   `FORM_ACTS` 加 `fx-trim`，`input` 事件走 `Snd.setTrim()`。
+4. 诊断日志「音效状态」新增 `trim=` 行；`route=` 保留。
+
+**给用户的操作建议**：这版装好后先听「关闭音效」是否等于原声（应当一致）。
+若开着音效仍偏小，把「音量补偿」往上调（例如 130%~150%）直到与原声听感一致——这个通路差多少跟机型/系统版本有关，
+给旋钮比猜一个常量可靠；调好后关闭音效会自动按 100% 处理，不会再串。
+
+**离线回归**：`PASS=12 FAIL=0`。
+
 ## 0k. 2026-11-18 音效音量不恢复（`c9d1e96` → 本轮修复）
 
 **用户反馈**：原声很洪亮；开音效后声音小了不少；把音效关掉，音量也回不来。

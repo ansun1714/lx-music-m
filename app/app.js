@@ -1072,6 +1072,13 @@
       }).join('') + '</div></div>';
     h += '<div class="fx-row"><div class="fx-label"><b>3D 环绕</b><span>声音绕听者缓慢旋转</span></div>' +
       '<label class="switch"><input type="checkbox" data-act="fx-surround"' + (st.surround ? ' checked' : '') + '><i></i></label></div>';
+    /* 音量补偿：鸿蒙上「元素→MediaElementSource→AudioContext」这条通路整体比元素直出偏小，
+     * 开音效后听感下降，与增益无关。这里给用户一个可调旋钮，关闭音效时自动按 100% 处理。 */
+    var trimPct = Math.round((st.trim || 1) * 100);
+    h += '<div class="fx-sec"><div class="fx-title">音量补偿 <em>音效开启时生效，关闭时自动 100%</em></div>' +
+      '<div class="fx-band"><span class="fx-freq">补偿</span>' +
+      '<input type="range" min="80" max="200" step="5" value="' + trimPct + '" data-act="fx-trim">' +
+      '<span class="fx-val" id="fxTrimVal">' + trimPct + '%</span></div></div>';
     h += '<div class="fx-row"><div class="fx-label"><b>音频图自检</b><span id="fxDiag">点右侧按钮查看 audio 链路真实状态</span></div>' +
       '<div class="fx-actions"><button class="btn sm" data-act="fx-diag">检测</button>' +
       '<button class="btn sm" data-act="log-export">导出日志</button></div></div>';
@@ -1598,7 +1605,7 @@
     'dl-path': 1,
     'set-audio-quality': 1, 'backup-mode': 1, 'sync-toggle': 1,
     'sync-addr': 1, 'sync-port': 1, 'sync-code': 1, 'api-toggle': 1,
-    'api-allow-alert': 1, 'fx-toggle': 1, 'fx-surround': 1, 'fx-band': 1
+    'api-allow-alert': 1, 'fx-toggle': 1, 'fx-surround': 1, 'fx-band': 1, 'fx-trim': 1
   };
   function applyFontScale(v) {
     var fs = Number(v);
@@ -2316,6 +2323,7 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
       case 'fx-surround': { if (Snd) Snd.setSurround(!!node.checked); syncAudioGraph(); renderOverlay(); return; }
       case 'fx-preset': { if (Snd) Snd.setPreset(id); try { if (engine.prepareGraph) engine.prepareGraph(); } catch (e) {} syncAudioGraph(); renderOverlay(); return; }
       case 'fx-reverb': { if (Snd) Snd.setReverb(id); syncAudioGraph(); renderOverlay(); return; }
+      case 'fx-trim': { if (Snd) Snd.setTrim(Number(node && node.value) / 100); return; }
       case 'fx-reset': { if (Snd) Snd.reset(); syncAudioGraph(); renderOverlay(); toast('已重置音效'); return; }
       case 'dl-retry-failed': {
         var n = 0;
@@ -2434,6 +2442,7 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
     out.push(diagSection('音效状态', [
       'enabled=' + snd.enabled + ' preset=' + snd.preset + ' reverb=' + snd.reverb,
       'surround=' + !!snd.surround + ' eq=' + JSON.stringify(snd.eq),
+      'trim=' + Math.round((snd.trim || 1) * 100) + '%',
       // route=direct 表示没串 HRTF 全景声节点（链路增益恒等）；route=panner 只在开了环绕时出现
       'route=' + (window.LXSound && typeof window.LXSound.route === 'function' ? window.LXSound.route() : '-')
     ]));
@@ -2738,6 +2747,13 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
         Snd.setBand(bi, bv);
         var lbl = document.getElementById('fxVal' + bi);
         if (lbl) lbl.textContent = (bv > 0 ? '+' : '') + bv;
+      }
+      // 音量补偿：拖动即时生效（同 fx-band，不重渲染，避免打断拖动）
+      if (e.target && e.target.dataset && e.target.dataset.act === 'fx-trim' && Snd) {
+        var tv = Number(e.target.value);
+        Snd.setTrim(tv / 100);
+        var tl = document.getElementById('fxTrimVal');
+        if (tl) tl.textContent = tv + '%';
       }
       // 设置页的滑块 / 数字框：拖动和键入都实时生效，不重渲染（v3.10.0）
       if (e.target && e.target.dataset && e.target.dataset.act === 'set-num') {

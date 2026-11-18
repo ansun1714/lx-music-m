@@ -37,7 +37,11 @@
     preset: '关闭',
     eq: FREQS.map(function () { return 0; }),
     reverb: 'none',
-    surround: false
+    surround: false,
+    /* 输出补偿：鸿蒙 ArkWeb 上「元素 → MediaElementSource → AudioContext」这条通路
+     * 本身比元素直出小一截（增益全为 1 时也一样），开音效后听着就变小声。
+     * 这里给用户一个可调旋钮，默认 1.0（不改变原有听感）。 */
+    trim: 1
   };
 
   var ctx = null, inputNode = null, outNode = null;
@@ -75,6 +79,9 @@
         if (raw.preset) state.preset = String(raw.preset);
         if (raw.reverb) state.reverb = reverbOf(raw.reverb).id;
         if (typeof raw.surround === 'boolean') state.surround = raw.surround;
+        if (raw.trim !== undefined && raw.trim !== null) {
+          state.trim = clamp(Number(raw.trim) || 1, 0.5, 2);
+        }
       }
     } catch (e) { /* 忽略损坏配置 */ }
   }
@@ -265,6 +272,11 @@
       var v = state.enabled ? state.eq[i] : 0;
       try { eqNodes[i].gain.setTargetAtTime(v, t, 0.03); } catch (e) { eqNodes[i].gain.value = v; }
     }
+    /* 输出补偿只作用于「音效生效期间」；关闭态必须是 1，否则又会造成关掉回不到原声 */
+    if (mixGain) {
+      var trim = state.enabled ? (state.trim || 1) : 1;
+      try { mixGain.gain.setTargetAtTime(trim, t, 0.02); } catch (e) { mixGain.gain.value = trim; }
+    }
     if (!state.enabled) {
       /* 关闭 = 严格等增益旁路：EQ 归零、湿声 0、干声 1、脱离全景声节点。
        * 差任何一个都会表现为「关掉音效音量也回不到原声」。 */
@@ -315,6 +327,10 @@
     state.surround = !!on;
     apply(); save(); emit();
   }
+  function setTrim(v) {
+    state.trim = clamp(Number(v) || 1, 0.5, 2);
+    apply(); save(); emit();
+  }
   function reset() {
     state.eq = FREQS.map(function () { return 0; });
     state.preset = '关闭';
@@ -349,6 +365,7 @@
     setBand: setBand,
     setReverb: setReverb,
     setSurround: setSurroundOn,
+    setTrim: setTrim,
     reset: reset,
     route: function () { return pannerInChain ? 'panner' : 'direct'; },
     onChange: function (fn) { if (typeof fn === 'function') listeners.push(fn); }

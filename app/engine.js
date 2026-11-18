@@ -888,12 +888,34 @@
     if (!want) {
       this._blobPending = null;
       this._wantBlob = null;
-      /* v3.13.2：关音效时不再换元素回原生。
-       * sound-effects 的 apply() 在关闭状态下会把 EQ 各段增益置 0、湿声置 0，
-       * 音频图本身就是「原样放行」——留着它就是干净的旁路。
-       * 换元素要摘 src、重建解码器，实测会卡 1~2 秒没声音（用户看到的「关一下就没声了」）。 */
-      /* P0-5：只有「图确实健康」才能把旁路当成正常；ctx closed / 跨上下文 / 断链时必须重建 */
-      if (this.mediaSrc && this.isGraphHealthy()) return true;
+      /* 关音效必须**真的离开 WebAudio 通路**。
+       *
+       * 曾经的做法是「保留音频图当干净旁路」：apply() 把 EQ 各段增益置 0、湿声置 0、干声置 1，
+       * 于是理论上增益恒等，还能省掉换元素的 1~2 秒静音。但鸿蒙 ArkWeb 实测：
+       * 元素 → MediaElementSource → AudioContext.destination 这条通路的整体输出，
+       * 本身就比 <audio> 元素直出小一截（不是我们的增益造成的，图里所有增益都已是 1）。
+       * 结果就是「开音效变小、关音效也回不来」—— 用户反馈两轮都是这个现象。
+       *
+       * 所以这里改回「关音效 = 换一个新的原生元素」，MediaElementSource 无法撤销，
+       * 换元素是唯一能真正回到原生输出的方式。在新元素上直接复用当前元素的 currentSrc
+       * （blob: 或 http 都可用），再把播放位置/速率/音量接回去，尽量无缝。 */
+      var srcNow = this.el && (this.el.currentSrc || this.el.src);
+      if (srcNow && this.mediaSrc) {
+        try { this.el.pause(); } catch (e) {}
+        try { this.mediaSrc.disconnect(); } catch (e) {}
+        this.mediaSrc = null;
+        this._graphMounted = false;
+        if (window.LXSound && typeof window.LXSound.teardown === 'function') {
+          try { window.LXSound.teardown(); } catch (e) {}
+        }
+        this.playing = false;
+        dlog('audio', 'rebuild -> native (leave WebAudio path)');
+        this._createEl(srcNow, {
+          kind: base.kind, url: origin, localUrl: srcNow,
+          mime: last.mime, headers: last.headers, origin: origin
+        }, pos, was, true);
+        return true;
+      }
     }
     if (want && base.kind === 'stream' && /^https?:/i.test(String(origin))) {
       if (this._blobPending === origin) return true;      // 正在缓存，别重复发起
