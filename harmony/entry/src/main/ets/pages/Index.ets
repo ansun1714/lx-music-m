@@ -20,6 +20,7 @@ struct Index {
   aboutToAppear(): void {
     const ctx = getContext(this) as common.UIAbilityContext;
     this.bridge.init(ctx, this.controller);
+    this.bridge.notePhase('ui aboutToAppear');
     hilog.info(0x0D00, TAG, 'bridge ready');
   }
 
@@ -53,7 +54,15 @@ struct Index {
           }
           return false;
         })
+        .onControllerAttached(() => {
+          this.bridge.notePhase('web attach');
+          hilog.info(0x0D00, TAG, 'web controller attached');
+        })
+        .onPageBegin(() => {
+          this.bridge.notePhase('web pageBegin');
+        })
         .onPageEnd(() => {
+          this.bridge.notePhase('web pageEnd');
           hilog.info(0x0D00, TAG, 'web page loaded');
           // 注意：这里不要再调用 restoreExportDir()。它会触发 fileShare.activatePermission，
           // 在部分机型上表现为「一打开应用就弹出系统文件管理器」，而本机又缺少

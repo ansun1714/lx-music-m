@@ -8,12 +8,14 @@
 import { AbilityConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import { EchoBridge } from '../core/EchoBridge';
 
 const DOMAIN: number = 0x0001;
 const TAG: string = 'LXMusicHos';
 
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+    EchoBridge.markBoot('ability onCreate');
     hilog.info(DOMAIN, TAG, 'EntryAbility onCreate');
   }
 
@@ -22,11 +24,14 @@ export default class EntryAbility extends UIAbility {
   }
 
   onWindowStageCreate(windowStage: window.WindowStage): void {
+    EchoBridge.markBoot('windowStage create');
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {
+        EchoBridge.markBoot('loadContent failed');
         hilog.error(DOMAIN, TAG, 'loadContent failed: %{public}s', JSON.stringify(err));
         return;
       }
+      EchoBridge.markBoot('loadContent done');
       hilog.info(DOMAIN, TAG, 'loadContent succeeded');
     });
   }

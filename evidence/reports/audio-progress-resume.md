@@ -184,6 +184,36 @@
 
 **离线校验**：`node --check app/app.js`、`app/sound-effects.js` 通过；`node evidence/audio-graph-tests.js` **PASS=11 FAIL=0**。真机仍未验证。
 
+## 0i. 2026-11-18 08:25 冷启动复测（`98b87b8`，应用内截图日志）
+
+**结论：`onShowFileSelector` 接管无效——冷启动弹窗既不是 Bridge picker，也不是 ArkWeb 页面文件选择请求。**
+
+证据（用户截屏的应用内诊断页）：
+
+```
+==== 音源运行日志 ====  08:25:27 初始化成功：墨澜 / 星海
+==== 原生桥轨迹（导出前快照） ====
+08:25:26 init          ← 只有这一行
+```
+
+- 如果弹窗来自页面 `<input type=file>` / `showOpenFilePicker`，`98b87b8` 的 `onShowFileSelector` 会命中并写下 `ArkWeb 请求文件选择器：已拦截`。**没有这一行** → 页面没有发起文件选择。
+- Bridge 侧同样零 picker 调用（`init` 之后没有任何 `picker.save open` / `pickExportDir` / `exportDownload`）。
+- `EntryAbility.ets` 只有 `onCreate`/`onWindowStageCreate`/`loadContent`，无任何文件 API；`module.json5` 只剩 INTERNET / GET_NETWORK_INFO；`EchoBridge.init()` 只做 `tr('init')` + `loadSaveDir()`（纯读 preferences）。
+- 即：**应用代码里不存在任何能拉起文件管理器/文件选择器的调用**。剩下的嫌疑是 ArkWeb 组件属性 `fileAccess(true)`（为 `file://` 播沙箱下载文件而开）或系统 ROM 自身行为。
+
+**本轮改动（纯观测，不动行为）：**
+
+1. `EntryAbility.ets`：`onCreate` / `onWindowStageCreate` / `loadContent done|failed` 写入进程级轨迹（`EchoBridge.markBoot`），解决「Bridge 实例创建之前的阶段看不到」的盲区。
+2. `EchoBridge.ets`：新增静态 `boot: string[]` + `markBoot()`；`nativeTrace()` 现在输出「[进程启动] … [桥实例] …」两段，并新增 `notePhase()`。
+3. `Index.ets`：`ui aboutToAppear` / `web attach`（`onControllerAttached`）/ `web pageBegin` / `web pageEnd` 四个阶段打点。
+
+这样下一份日志能直接读出「窗口创建 → 桥初始化 → Web attach → 页面加载完」的时间线，再对照用户描述的弹窗时刻定位阶段。
+
+**下一轮判读口径：**
+- 若弹窗出现在 `web attach` 之前 → 与 Web 组件无关，属系统/窗口阶段；
+- 若在 `web attach` 之后、`pageEnd` 之前 → 高度怀疑 `fileAccess(true)`，下一版关掉 `fileAccess` + `imageAccess` 做对照（代价：`file://` 本地已下载歌曲可能不能播，需回退方案）；
+- 若在 `pageEnd` 之后 → 是页面加载完成后的 JS 行为，但 JS 侧已无 picker 调用，需查 `localStorage`/下载任务恢复。
+
 ## 0h. 2026-11-17 18:45 真机日志（`lx-diag-2026-11-17-10-45-48.txt`，1413 B，`4127719`）
 
 **这份日志只覆盖冷启动后 12 秒（18:45:36 init → 18:45:48 导出），但足够定两件事。**

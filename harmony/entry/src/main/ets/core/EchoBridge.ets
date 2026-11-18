@@ -98,6 +98,9 @@ export class EchoBridge {
   private dirRestored: boolean = false;
   /** 原生侧调用轨迹（只记可能拉起系统 UI 的动作），供 JS 诊断日志回读 */
   private trace: string[] = [];
+  /** 进程级启动轨迹：EntryAbility / 窗口阶段在 Bridge 实例创建之前就发生了，
+   *  只有静态数组才收得到，导出日志时一并回读，用来判断冷启动弹窗落在哪个阶段。 */
+  private static boot: string[] = [];
 
   private tr(what: string): void {
     const t: string = new Date().toTimeString().substring(0, 8);
@@ -108,14 +111,31 @@ export class EchoBridge {
     hilog.info(DOMAIN, TAG, 'trace %{public}s', what);
   }
 
-  /** JS 诊断日志用：返回原生侧最近的动作轨迹（picker / 授权 / 保存目录） */
+  /** 记录进程级启动阶段（EntryAbility / 窗口加载），只写 hilog 与静态轨迹 */
+  static markBoot(what: string): void {
+    const t: string = new Date().toTimeString().substring(0, 8);
+    EchoBridge.boot.push(t + ' ' + what);
+    if (EchoBridge.boot.length > 40) {
+      EchoBridge.boot = EchoBridge.boot.slice(-40);
+    }
+    hilog.info(DOMAIN, TAG, 'boot %{public}s', what);
+  }
+
+  /** JS 诊断日志用：返回原生侧最近的动作轨迹（picker / 授权 / 保存目录 / Web 阶段） */
   nativeTrace(): string {
-    return this.trace.length === 0 ? '(无)' : this.trace.join('\n');
+    const head: string = EchoBridge.boot.length === 0 ? '' :
+      '[进程启动]\n' + EchoBridge.boot.join('\n') + '\n[桥实例]\n';
+    return head + (this.trace.length === 0 ? '(无)' : this.trace.join('\n'));
   }
 
   /** 页面主动请求文件选择器（Web onShowFileSelector）时记一笔，便于定位冷启动弹窗来源 */
   noteFileSelector(): void {
     this.tr('ArkWeb 请求文件选择器：已拦截');
+  }
+
+  /** Web/UI 生命周期打点（nativeTrace 里能看到阶段顺序） */
+  notePhase(what: string): void {
+    this.tr(what);
   }
 
   init(ctx: common.UIAbilityContext, web: webview.WebviewController): void {
