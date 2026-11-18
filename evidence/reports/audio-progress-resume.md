@@ -184,6 +184,37 @@
 
 **离线校验**：`node --check app/app.js`、`app/sound-effects.js` 通过；`node evidence/audio-graph-tests.js` **PASS=11 FAIL=0**。真机仍未验证。
 
+## 0m. 2026-11-18 10:42 复测（`8141cff`）：关能回原声了，但「关掉再开」音效失效
+
+**日志事实（`lx-diag-2026-11-18-02-42-05.txt` / `...-02-42-27.txt`）：**
+
+- 关音效这一半**修好了**：`10:40:26 / 10:41:15 / 10:41:48` 三次都出现
+  `rebuild -> native (leave WebAudio path)` + 新元素 `el play/loadedmetadata/canplay/playing`，
+  用户也确认「关闭音效音量能回来」。
+- 再打开这一半**坏了**：`10:40:33` 与 `10:41:53` 两次开启只有
+  `setEnabled -> true` → `ensureMounted=true` → `prepareGraph ok mounted=true`，
+  **没有任何 `graph fetch` / `blob play`**；自检停在同一状态：
+  `bound=false healthy=false media=false mounted=true mode=stream el=true`。
+  即：**音频图挂上了，但当前 `<audio>` 没有接进 MediaElementSource**，音效自然不生效。
+- 对照组：`10:41:34` 那次开启（元素是 http 源）走了 `graph fetch` → `blob play`，音效正常。
+  所以失效只发生在「元素已经是 blob、且刚从原生元素切回来」的时刻——`syncAudioGraph()` 的
+  want/bound 比较在这条路径上认为「无需重建」，直接 return 了。
+- 「200% 还比原音小」这一条：那两次导出时 `bound=false media=false`，
+  也就是**声音根本没走音频图**，`trim=200%` 没有任何作用对象，用户听到的是原生元素（`volume=0.80`）。
+  所以这一条大概率是失效的连带现象，需要先修好「再打开」再看。
+
+**修复（本轮）：**
+
+1. 新增 `engine.forceGraphSwap()`：不参与 want/bound 判断，直接用元素现有 `currentSrc`
+   （blob: 同源、秒切，不重新取字节）新建元素并挂进 MediaElementSource，回填位置/播放态。
+2. `fx-toggle` 开启分支：先 `prepareGraph()`，再按当前源分流——
+   `blob:` 走 `forceGraphSwap()`，`http(s):` 走 `rebuild()`（取字节 → blob → 挂图）。
+3. `_createEl()` 增加 `createEl useGraph=…` 打点，日志里能直接看出这次建的元素挂没挂图。
+4. 音量补偿上限放宽到 **300%**（`clamp 0.8~3.0`，滑条 80%~300%），应对个别机型 WebAudio 衰减更大的情况。
+
+**复测要点**：开→关→开，日志里应当出现 `forceGraphSwap url=blob:…` 与 `createEl useGraph=true`，
+自检要变成 `bound=true media=true mounted=true`；此时再拖「音量补偿」，音量应当即时变化（说明补偿真的作用在图上）。
+
 ## 0l. 2026-11-18 10:24 复测（`81e7fe9`）：route 已修好，但音量仍未恢复 → 二次根因
 
 **日志事实（`lx-diag-2026-11-18-02-24-06.txt`，7,061 B）：**

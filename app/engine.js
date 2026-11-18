@@ -259,6 +259,34 @@
     return !!(this.mediaSrc && this.ctx && this.ctx.state !== 'closed' && this._graphMounted);
   };
 
+  /* 开音效时把「已经在放、但没挂进音频图」的元素换成挂进图的新元素。
+   * 与 rebuild() 的差别：不做 want/bound 判断、不去重新取字节，直接用元素现有 currentSrc
+   * （blob: 同源，秒切，不会卡）。专治「关掉音效（已回原生元素）再打开，音效失效」。 */
+  AudioEngine.prototype.forceGraphSwap = function () {
+    if (!this.el) return false;
+    var url = this.el.currentSrc || this.el.src;
+    if (!url) return false;
+    var last = this._lastRef || {};
+    var ref = {
+      kind: last.kind || this.mode || 'stream',
+      url: last.origin || url,
+      localUrl: url,
+      origin: last.origin || '',
+      mime: last.mime || this.mediaMime,
+      headers: last.headers
+    };
+    var pos = this.position(), was = this.playing;
+    try { this.el.pause(); } catch (e) {}
+    if (this.mediaSrc) { try { this.mediaSrc.disconnect(); } catch (e) {} this.mediaSrc = null; }
+    this.playing = false;
+    dlog('audio', 'forceGraphSwap url=' + String(url).slice(0, 48) + ' pos=' + (Math.round(pos * 10) / 10));
+    try { this._createEl(url, ref, pos, was, false); } catch (e) {
+      dlog('audio', 'forceGraphSwap fail ' + e);
+      return false;
+    }
+    return true;
+  };
+
   AudioEngine.prototype.isGraphHealthy = function () {
     if (!this.mediaSrc) return false;
     if (!this.ctx || this.ctx.state === 'closed') return false;
@@ -733,6 +761,8 @@
     el.preload = 'auto';
     el.playbackRate = this.playbackRate;
     var useGraph = !forceNative && this.wantGraph(ref);
+    dlog('audio', 'createEl useGraph=' + useGraph + ' forceNative=' + !!forceNative +
+      ' kind=' + (ref && ref.kind || '-') + ' url=' + String(url).slice(0, 40));
     /* graph 模式下优先走原生媒体代理（同源，不会被静音）。
      * 代理不可用（浏览器预览）时才退回 crossOrigin='anonymous'，
      * 极端情况下由 onError 回退原生播放，保证永远有声音。 */

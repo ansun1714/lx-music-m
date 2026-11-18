@@ -1075,9 +1075,9 @@
     /* 音量补偿：鸿蒙上「元素→MediaElementSource→AudioContext」这条通路整体比元素直出偏小，
      * 开音效后听感下降，与增益无关。这里给用户一个可调旋钮，关闭音效时自动按 100% 处理。 */
     var trimPct = Math.round((st.trim || 1) * 100);
-    h += '<div class="fx-sec"><div class="fx-title">音量补偿 <em>音效开启时生效，关闭时自动 100%</em></div>' +
+    h += '<div class="fx-sec"><div class="fx-title">音量补偿 <em>音效开启时生效，关闭时自动 100%（200% 仍偏小可继续往上拉）</em></div>' +
       '<div class="fx-band"><span class="fx-freq">补偿</span>' +
-      '<input type="range" min="80" max="200" step="5" value="' + trimPct + '" data-act="fx-trim">' +
+      '<input type="range" min="80" max="300" step="5" value="' + trimPct + '" data-act="fx-trim">' +
       '<span class="fx-val" id="fxTrimVal">' + trimPct + '%</span></div></div>';
     h += '<div class="fx-row"><div class="fx-label"><b>音频图自检</b><span id="fxDiag">点右侧按钮查看 audio 链路真实状态</span></div>' +
       '<div class="fx-actions"><button class="btn sm" data-act="fx-diag">检测</button>' +
@@ -2294,9 +2294,21 @@ case 'set-audio-quality': S.settings.audioQuality = node.value; save(); toast('�
         if (Snd) Snd.setEnabled(onFx);
         if (window.LXdlog) window.LXdlog('fx', 'fx-toggle 点击 -> enabled=' + onFx +
           ' state=' + (Snd ? Snd.state().enabled : '-') + ' bound=' + (engine.isGraphBound ? engine.isGraphBound() : '-'));
-        /* 关闭时不重建元素/不准备音频图：图本身是干净旁路，重建会卡 1~2 秒没声，
-         * 也会让用户误以为「关了没反应」。 */
-        if (onFx) { try { if (engine.prepareGraph) engine.prepareGraph(); } catch (e) {} }
+        /* 开启时连带把「已经在放、但没挂进图」的元素换进图：
+         * 关音效那一步会新建一个原生元素（MediaElementSource 不可撤销），
+         * 再打开时如果只挂图不换元素，图是空的 —— 真机日志里就是这个现象：
+         * prepareGraph ok 但 bound=false / media=false，音效完全不生效。 */
+        if (onFx) {
+          try { if (engine.prepareGraph) engine.prepareGraph(); } catch (e) {}
+          var curSrc = (engine.el && (engine.el.currentSrc || engine.el.src)) || '';
+          try {
+            if (/^blob:/i.test(curSrc) && engine.forceGraphSwap) {
+              engine.forceGraphSwap();
+            } else if (engine.rebuild) {
+              engine.rebuild();            // http 源：走取字节 → blob → 挂图
+            }
+          } catch (e2) {}
+        }
         syncAudioGraph();
         renderOverlay();
         return;

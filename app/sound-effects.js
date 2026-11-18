@@ -80,7 +80,7 @@
         if (raw.reverb) state.reverb = reverbOf(raw.reverb).id;
         if (typeof raw.surround === 'boolean') state.surround = raw.surround;
         if (raw.trim !== undefined && raw.trim !== null) {
-          state.trim = clamp(Number(raw.trim) || 1, 0.5, 2);
+          state.trim = clamp(Number(raw.trim) || 1, 0.8, 3);
         }
       }
     } catch (e) { /* 忽略损坏配置 */ }
@@ -328,7 +328,7 @@
     apply(); save(); emit();
   }
   function setTrim(v) {
-    state.trim = clamp(Number(v) || 1, 0.5, 2);
+    state.trim = clamp(Number(v) || 1, 0.8, 3);
     apply(); save(); emit();
   }
   function reset() {
